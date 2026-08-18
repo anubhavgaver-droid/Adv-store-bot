@@ -15,7 +15,7 @@ import os
 import random
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pyrogram import Client, filters, __version__
 from pyrogram.enums import ParseMode, ChatAction
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ReplyKeyboardMarkup, ChatInviteLink, ChatPrivileges
@@ -30,13 +30,13 @@ from database.database import *
 
 @Bot.on_message(filters.command('stats') & admin)
 async def stats(bot: Bot, message: Message):
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     delta = now - bot.uptime
     time = get_readable_time(delta.seconds)
     await message.reply(BOT_STATS_TEXT.format(uptime=time))
 
-
 #=====================================================================================##
+
 
 WAIT_MSG = "<b>Working....</b>"
 
