@@ -7,7 +7,7 @@ from helper_func import admin
 from database.database import db
 
 # ==============================================================================
-# 🎛️ MAIN ADMIN PANEL (/settings or /panel)
+# 🎛️ MAIN ADMIN PANEL (/settings या /panel)
 # ==============================================================================
 @Bot.on_message(filters.command(['settings', 'panel']) & filters.private & admin)
 async def admin_settings_panel(client: Client, message: Message):
@@ -35,7 +35,102 @@ async def send_main_settings_panel(message_or_query):
 
 
 # ==============================================================================
-# 💎 1. PREMIUM PLAN SETTINGS
+# 📢 FORCE SUBSCRIBE SETTINGS (NORMAL + REQUEST MODE)
+# ==============================================================================
+@Bot.on_callback_query(filters.regex("^panel_fsub$"))
+async def panel_fsub(client: Client, callback_query: CallbackQuery):
+    settings = await db.get_bot_settings()
+    fsub_mode = settings.get('fsub_mode', 'NORMAL')  # Default Mode: NORMAL
+
+    channels = await db.show_channels()
+    
+    chnl_text = ""
+    if channels:
+        for index, ch_id in enumerate(channels, start=1):
+            chnl_text += f"{index}. <code>{ch_id}</code>\n"
+    else:
+        chnl_text = "<i>No channels added yet.</i>"
+
+    mode_display = "📩 JOIN REQUEST" if fsub_mode == "REQUEST" else "🔗 NORMAL JOIN"
+
+    caption = (
+        "<b>📢 FORCE SUBSCRIBE MANAGEMENT</b>\n\n"
+        f"<b>CURRENT FSUB MODE:</b> <code>{mode_display}</code>\n\n"
+        f"<b>ADDED CHANNELS:</b>\n{chnl_text}"
+    )
+
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"🔄 MODE: {mode_display}", callback_data="action_toggle_fsub_mode")],
+        [
+            InlineKeyboardButton("➕ ADD CHANNEL", callback_data="action_add_fsub"),
+            InlineKeyboardButton("➖ REMOVE CHANNEL", callback_data="action_rem_fsub")
+        ],
+        [InlineKeyboardButton("ᐸ BACK", callback_data="panel_main")]
+    ])
+    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+
+
+@Bot.on_callback_query(filters.regex("^action_toggle_fsub_mode$"))
+async def action_toggle_fsub_mode(client: Client, callback_query: CallbackQuery):
+    settings = await db.get_bot_settings()
+    current_mode = settings.get('fsub_mode', 'NORMAL')
+    
+    # Toggle Mode between NORMAL and REQUEST
+    new_mode = "REQUEST" if current_mode == "NORMAL" else "NORMAL"
+    await db.update_bot_setting('fsub_mode', new_mode)
+    
+    await callback_query.answer(f"Switched Force Sub Mode to: {new_mode}", show_alert=True)
+    await panel_fsub(client, callback_query)
+
+
+@Bot.on_callback_query(filters.regex("^action_add_fsub$"))
+async def action_add_fsub(client: Client, callback_query: CallbackQuery):
+    await callback_query.message.delete()
+    user_id = callback_query.from_user.id
+
+    msg = await client.send_message(
+        chat_id=user_id,
+        text="<b>SEND CHANNEL ID TO ADD IN FORCE SUB...</b>\n\n<i>Example: -1001234567890</i>\n\n<i>/cancel - CANCEL PROCESS</i>",
+        reply_markup=ForceReply(selective=True)
+    )
+    try:
+        res = await client.listen(chat_id=user_id, timeout=300)
+        if res.text and not res.text.startswith('/cancel'):
+            try:
+                ch_id = int(res.text.strip())
+                await db.add_channel(ch_id)
+                await res.reply("✅ **CHANNEL ADDED TO FORCE SUB!**")
+            except ValueError:
+                await res.reply("❌ **Invalid Channel ID format!**")
+    except Exception:
+        pass
+
+
+@Bot.on_callback_query(filters.regex("^action_rem_fsub$"))
+async def action_rem_fsub(client: Client, callback_query: CallbackQuery):
+    await callback_query.message.delete()
+    user_id = callback_query.from_user.id
+
+    msg = await client.send_message(
+        chat_id=user_id,
+        text="<b>SEND CHANNEL ID TO REMOVE FROM FORCE SUB...</b>\n\n<i>/cancel - CANCEL PROCESS</i>",
+        reply_markup=ForceReply(selective=True)
+    )
+    try:
+        res = await client.listen(chat_id=user_id, timeout=300)
+        if res.text and not res.text.startswith('/cancel'):
+            try:
+                ch_id = int(res.text.strip())
+                await db.rem_channel(ch_id)
+                await res.reply("✅ **CHANNEL REMOVED FROM FORCE SUB!**")
+            except ValueError:
+                await res.reply("❌ **Invalid Channel ID format!**")
+    except Exception:
+        pass
+
+
+# ==============================================================================
+# 💎 PREMIUM PLAN SETTINGS
 # ==============================================================================
 @Bot.on_callback_query(filters.regex("^panel_premium$"))
 async def panel_premium(client: Client, callback_query: CallbackQuery):
@@ -46,13 +141,7 @@ async def panel_premium(client: Client, callback_query: CallbackQuery):
     caption = (
         "<b>💎 PREMIUM PLAN CONFIGURATION</b>\n\n"
         f"<b>• UPI ID:</b> <code>{upi_id}</code>\n"
-        f"<b>• QR PIC LINK:</b> {qr_pic}\n\n"
-        "<b>PRICES:</b>\n"
-        f"• 7 Days: {PRICE1}\n"
-        f"• 1 Month: {PRICE2}\n"
-        f"• 3 Month: {PRICE3}\n"
-        f"• 6 Month: {PRICE4}\n"
-        f"• 1 Year: {PRICE5}"
+        f"<b>• QR PIC LINK:</b> {qr_pic}"
     )
 
     buttons = InlineKeyboardMarkup([
@@ -69,17 +158,16 @@ async def panel_premium(client: Client, callback_query: CallbackQuery):
 async def action_set_upi(client: Client, callback_query: CallbackQuery):
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    
-    msg = await client.send_message(
+    await client.send_message(
         chat_id=user_id,
-        text="<b>SEND ME NEW UPI ID...</b>\n\n<i>Example: username@upi</i>\n\n<i>/cancel - CANCEL PROCESS</i>",
+        text="<b>SEND ME NEW UPI ID...</b>\n\n<i>/cancel - CANCEL PROCESS</i>",
         reply_markup=ForceReply(selective=True)
     )
     try:
         res = await client.listen(chat_id=user_id, timeout=300)
         if res.text and not res.text.startswith('/cancel'):
             await db.update_bot_setting('upi_id', res.text.strip())
-            await res.reply("✅ **UPI ID UPDATED SUCCESSFULLY!**")
+            await res.reply("✅ **UPI ID UPDATED!**")
     except Exception:
         pass
 
@@ -88,8 +176,7 @@ async def action_set_upi(client: Client, callback_query: CallbackQuery):
 async def action_set_qr(client: Client, callback_query: CallbackQuery):
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    
-    msg = await client.send_message(
+    await client.send_message(
         chat_id=user_id,
         text="<b>SEND ME NEW QR IMAGE URL...</b>\n\n<i>/cancel - CANCEL PROCESS</i>",
         reply_markup=ForceReply(selective=True)
@@ -98,13 +185,13 @@ async def action_set_qr(client: Client, callback_query: CallbackQuery):
         res = await client.listen(chat_id=user_id, timeout=300)
         if res.text and not res.text.startswith('/cancel'):
             await db.update_bot_setting('qr_pic', res.text.strip())
-            await res.reply("✅ **QR PIC LINK UPDATED SUCCESSFULLY!**")
+            await res.reply("✅ **QR PIC UPDATED!**")
     except Exception:
         pass
 
 
 # ==============================================================================
-# 🪙 2. TOKEN VERIFICATION SETTINGS
+# 🪙 TOKEN VERIFICATION SETTINGS
 # ==============================================================================
 @Bot.on_callback_query(filters.regex("^panel_verify$"))
 async def panel_verify(client: Client, callback_query: CallbackQuery):
@@ -153,7 +240,7 @@ async def action_set_shortlink(client: Client, callback_query: CallbackQuery):
     
     msg1 = await client.send_message(
         chat_id=user_id,
-        text="<b>SEND ME A SHORTLINK URL...</b>\n\n<b>FORMAT :</b>\n<code>vjlink.online</code> - ✅\n\n<i>/cancel - CANCEL THIS PROCESS.</i>",
+        text="<b>SEND ME A SHORTLINK URL...</b>\n\n<b>FORMAT :</b>\n<code>vjlink.online</code> - ✅\n\n<i>/cancel - CANCEL PROCESS.</i>",
         reply_markup=ForceReply(selective=True)
     )
     try:
@@ -216,7 +303,7 @@ async def action_set_tut(client: Client, callback_query: CallbackQuery):
         res = await client.listen(chat_id=user_id, timeout=300)
         if res.text and not res.text.startswith('/cancel'):
             await db.update_bot_setting('tut_vid', res.text.strip())
-            await res.reply("✅ **TUTORIAL LINK UPDATED SUCCESSFULLY!**")
+            await res.reply("✅ **TUTORIAL LINK UPDATED!**")
     except Exception:
         pass
 
@@ -240,7 +327,7 @@ async def action_set_verify_time(client: Client, callback_query: CallbackQuery):
 
 
 # ==============================================================================
-# ✍️ 3. CUSTOM CAPTION SETTINGS
+# ✍️ CUSTOM CAPTION SETTINGS
 # ==============================================================================
 @Bot.on_callback_query(filters.regex("^panel_caption$"))
 async def panel_caption(client: Client, callback_query: CallbackQuery):
@@ -292,81 +379,6 @@ async def action_del_caption(client: Client, callback_query: CallbackQuery):
     await db.update_bot_setting('custom_caption', "")
     await callback_query.answer("🗑 Caption cleared!", show_alert=True)
     await panel_caption(client, callback_query)
-
-
-# ==============================================================================
-# 📢 4. CUSTOM FORCE SUBSCRIBE SETTINGS
-# ==============================================================================
-@Bot.on_callback_query(filters.regex("^panel_fsub$"))
-async def panel_fsub(client: Client, callback_query: CallbackQuery):
-    channels = await db.show_channels()
-    
-    chnl_text = ""
-    if channels:
-        for index, ch_id in enumerate(channels, start=1):
-            chnl_text += f"{index}. <code>{ch_id}</code>\n"
-    else:
-        chnl_text = "<i>No channels added yet.</i>"
-
-    caption = (
-        "<b>📢 FORCE SUBSCRIBE MANAGEMENT</b>\n\n"
-        f"<b>ADDED CHANNELS:</b>\n{chnl_text}"
-    )
-
-    buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("➕ ADD CHANNEL", callback_data="action_add_fsub"),
-            InlineKeyboardButton("➖ REMOVE CHANNEL", callback_data="action_rem_fsub")
-        ],
-        [InlineKeyboardButton("ᐸ BACK", callback_data="panel_main")]
-    ])
-    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
-
-
-@Bot.on_callback_query(filters.regex("^action_add_fsub$"))
-async def action_add_fsub(client: Client, callback_query: CallbackQuery):
-    await callback_query.message.delete()
-    user_id = callback_query.from_user.id
-
-    msg = await client.send_message(
-        chat_id=user_id,
-        text="<b>SEND CHANNEL ID TO ADD IN FORCE SUB...</b>\n\n<i>Example: -1001234567890</i>\n\n<i>/cancel - CANCEL PROCESS</i>",
-        reply_markup=ForceReply(selective=True)
-    )
-    try:
-        res = await client.listen(chat_id=user_id, timeout=300)
-        if res.text and not res.text.startswith('/cancel'):
-            try:
-                ch_id = int(res.text.strip())
-                await db.add_channel(ch_id)
-                await res.reply("✅ **CHANNEL ADDED TO FORCE SUB!**")
-            except ValueError:
-                await res.reply("❌ **Invalid Channel ID format!**")
-    except Exception:
-        pass
-
-
-@Bot.on_callback_query(filters.regex("^action_rem_fsub$"))
-async def action_rem_fsub(client: Client, callback_query: CallbackQuery):
-    await callback_query.message.delete()
-    user_id = callback_query.from_user.id
-
-    msg = await client.send_message(
-        chat_id=user_id,
-        text="<b>SEND CHANNEL ID TO REMOVE FROM FORCE SUB...</b>\n\n<i>/cancel - CANCEL PROCESS</i>",
-        reply_markup=ForceReply(selective=True)
-    )
-    try:
-        res = await client.listen(chat_id=user_id, timeout=300)
-        if res.text and not res.text.startswith('/cancel'):
-            try:
-                ch_id = int(res.text.strip())
-                await db.rem_channel(ch_id)
-                await res.reply("✅ **CHANNEL REMOVED FROM FORCE SUB!**")
-            except ValueError:
-                await res.reply("❌ **Invalid Channel ID format!**")
-    except Exception:
-        pass
 
 
 # ==============================================================================
