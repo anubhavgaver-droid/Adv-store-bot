@@ -59,8 +59,9 @@ def get_db_channel_id(client: Client):
     except Exception:
         return None
 
+
 # ==============================================================================
-# MAIN /start COMMAND HANDLER (Single Engine for All Files & Batches)
+# MAIN /start COMMAND HANDLER
 # ==============================================================================
 @Bot.on_message(filters.command('start') & filters.private)
 async def start_command(client: Client, message: Message):
@@ -105,16 +106,16 @@ async def start_command(client: Client, message: Message):
         except IndexError:
             return
 
-        # 🔥 MULTI-BATCH DEEP LINK: Handles both 'mbatch_' and 'batch_' prefixes
+        # 🔥 MULTI-BATCH DEEP LINK HANDLER
         if base64_string.startswith("mbatch_") or base64_string.startswith("batch_"):
             return await handle_multi_batch_start(client, message, base64_string)
 
         # ----------------------------------------------------------------------
-        # STANDARD BATCH & SINGLE FILE DELIVERY ENGINE (Token & Verification)
+        # STANDARD BATCH & SINGLE FILE DELIVERY ENGINE (Optimized Fast Token)
         # ----------------------------------------------------------------------
         verify_status = await db.get_verify_status(id)
 
-        if SHORTLINK_URL or SHORTLINK_API:
+        if SHORTLINK_URL and SHORTLINK_API:
             if verify_status['is_verified'] and VERIFY_EXPIRE < (time.time() - verify_status['verified_time']):
                 await db.update_verify_status(user_id, is_verified=False)
                 verify_status['is_verified'] = False 
@@ -123,8 +124,6 @@ async def start_command(client: Client, message: Message):
                 _, token = text.split("_", 1)
                 if verify_status['verify_token'] != token:
                     return await message.reply("⚠️ 𝖨nv𝖺ʟɪᴅ 𝗍ᴏᴋᴇɴ. 𝖯ʟᴇᴀ𝗌ᴇ /start 𝖺𝗀αɪɴ.")
-
-                await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
 
                 await db.update_verify_status(id, is_verified=True, verified_time=time.time())
                 current = await db.get_verify_count(id)
@@ -144,11 +143,10 @@ async def start_command(client: Client, message: Message):
                 )
 
             if not verify_status['is_verified'] and not is_premium:
-                await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
-                
                 token = ''.join(random.choices(rohit.ascii_letters + rohit.digits, k=10))
                 await db.update_verify_status(id, verify_token=token, link=base64_string)
                 
+                # Fast Direct Generation without chat_action lag
                 link = await get_shortlink(SHORTLINK_URL, SHORTLINK_API, f'https://t.me/{client.username}?start=verify_{token}')
                 btn = [
                     [InlineKeyboardButton("• 𝚅𝙴𝚁𝙸𝙵𝙸𝙴𝙳 •", url=link),
@@ -189,11 +187,8 @@ async def start_command(client: Client, message: Message):
         cancel_tasks[user_id] = False
 
         wait_markup = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("𝙳𝙴𝚅𝙴𝙻𝙾𝙿𝙴𝚁🛠️", url="https://t.me/HDFILM0900_BOT", style=enums.ButtonStyle.PRIMARY)
-            ],[
-                InlineKeyboardButton("🌀 𝙲𝙰𝙽𝙲𝙴𝙻 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)
-            ]
+            [InlineKeyboardButton("𝙳𝙴𝚅𝙴𝙻𝙾𝙿𝙴𝚁🛠️", url="https://t.me/HDFILM0900_BOT", style=enums.ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("🌀 𝙲𝙰𝙽𝙲𝙴𝙻 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)]
         ])
         temp_msg = await message.reply("<b>🔺ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ</b>", reply_markup=wait_markup)
         
@@ -201,7 +196,6 @@ async def start_command(client: Client, message: Message):
             messages = await get_messages(client, ids)
         except Exception as e:
             await message.reply_text("Something went wrong!")
-            print(f"Error getting messages: {e}")
             try: await temp_msg.delete()
             except: pass
             return
@@ -236,7 +230,6 @@ async def start_command(client: Client, message: Message):
                                             reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
                 codeflix_msgs.append(copied_msg)
             except Exception as e:
-                print(f"Failed to send message: {e}")
                 pass
 
             await asyncio.sleep(1)
@@ -264,7 +257,7 @@ async def start_command(client: Client, message: Message):
                     try:    
                         await snt_msg.delete()  
                     except Exception as e:
-                        print(f"Error deleting message {snt_msg.id}: {e}")
+                        pass
 
             try:
                 reload_url = (
@@ -281,17 +274,14 @@ async def start_command(client: Client, message: Message):
                     reply_markup=keyboard
                 )
             except Exception as e:
-                print(f"Error updating notification with 'Get File Again' button: {e}")
+                pass
     else:
         try:
             sticker_msg = await message.reply_sticker(sticker=START_STICKER)
             await asyncio.sleep(0.4)
             await sticker_msg.delete()
-        except Exception as e:
-            print(f"Sticker Loading Error: {e}")
+        except Exception:
             pass  
-        
-        await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
         
         reply_markup = InlineKeyboardMarkup(
             [
@@ -313,16 +303,14 @@ async def start_command(client: Client, message: Message):
             ),
             reply_markup=reply_markup,
             effect_id=int(random.choice(EFFECT_IDS))) 
-
         return
 
 
 # ==============================================================================
-# 🔥 MULTI-BATCH START HANDLER (UI Generator ONLY)
+# 🔥 MULTI-BATCH START HANDLER (With Callback Buttons)
 # ==============================================================================
 async def handle_multi_batch_start(client: Client, message: Message, payload: str):
     try:
-        # Removes both mbatch_ and batch_ prefixes cleanly
         batch_id = payload.replace("mbatch_", "").replace("batch_", "").strip().lower()
         batch_data = await db.get_multi_batch(batch_id)
 
@@ -335,31 +323,154 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
         db_channel_id = abs(get_db_channel_id(client))
 
         for item in ranges:
-            # Check if base64_hash is already pre-saved in MongoDB
             if "base64_hash" in item and item["base64_hash"]:
                 batch_hash = item["base64_hash"]
             else:
-                # Dynamically construct standard Codexbotz Base64 hash if range has start_id and end_id
                 start_id = item["start_id"]
                 end_id = item["end_id"]
                 raw_string = f"get-{start_id * db_channel_id}-{end_id * db_channel_id}"
                 batch_hash = await encode(raw_string)
 
-            # Standard Telegram Deep Link for individual Range/Batch
-            batch_url = f"https://t.me/{client.username}?start={batch_hash}"
-
+            # Callback button for auto-deletion functionality
             buttons.append([
-                InlineKeyboardButton(f"📺 {item['title']}", url=batch_url)
+                InlineKeyboardButton(f"📺 {item['title']}", callback_data=f"getep_{batch_hash}")
             ])
 
         markup = InlineKeyboardMarkup(buttons)
         await message.reply_text(
-            f"🎬 **Multi-Batch Episodes:** `{batch_id.upper()}`\n\n👇 **Niche दिए गए बटन पर क्लिक करके एपिसोड प्राप्त करें:**",
+            f"🎬 **Multi-Batch Episodes:** `{batch_id.upper()}`\n\n👇 **नीचे दिए गए बटन पर क्लिक करके एपिसोड प्राप्त करें:**",
             reply_markup=markup
         )
     except Exception as e:
         logger.error(f"❌ [START MBATCH ERROR] {e}\n{traceback.format_exc()}")
         await message.reply_text(f"❌ **Start Error:** `{e}`")
+
+
+# ==============================================================================
+# 🔥 EPISODE BUTTON CLICK HANDLER (Deletes Button & Delivers File)
+# ==============================================================================
+@Bot.on_callback_query(filters.regex(r"^getep_"))
+async def handle_episode_button_click(client: Client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    base64_string = callback_query.data.split("getep_")[1]
+
+    # 1. 🧹 Click करते ही बटन मैसेज तुरंत Delete होगा
+    try:
+        await callback_query.message.delete()
+    except Exception:
+        pass
+
+    try:
+        await callback_query.answer()
+    except Exception:
+        pass
+
+    # 2. Check User Verification / Premium Status
+    is_premium = await is_premium_user(user_id)
+    verify_status = await db.get_verify_status(user_id)
+
+    if SHORTLINK_URL and SHORTLINK_API:
+        if verify_status['is_verified'] and VERIFY_EXPIRE < (time.time() - verify_status['verified_time']):
+            await db.update_verify_status(user_id, is_verified=False)
+            verify_status['is_verified'] = False
+
+        if not verify_status['is_verified'] and not is_premium:
+            token = ''.join(random.choices(rohit.ascii_letters + rohit.digits, k=10))
+            await db.update_verify_status(user_id, verify_token=token, link=base64_string)
+            
+            # Fast Shortlink Fetch
+            link = await get_shortlink(SHORTLINK_URL, SHORTLINK_API, f'https://t.me/{client.username}?start=verify_{token}')
+            btn = [
+                [InlineKeyboardButton("• 𝚅𝙴𝚁𝙸𝙵𝙸𝙴𝙳 •", url=link),
+                 InlineKeyboardButton("• ᴛᴜᴛᴏʀɪᴀʟ •", url=TUT_VID)],
+                [InlineKeyboardButton("• ʙᴜʏ ᴘʀᴇᴍɪᴜ𝙼 •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
+            ]
+            return await client.send_message(
+                user_id,
+                f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ 𝘁𝗼𝗸𝗲𝗻 𝘁𝗼 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
+                reply_markup=InlineKeyboardMarkup(btn),
+                protect_content=True
+            )
+
+    # 3. File Delivery Engine
+    try:
+        string = await decode(base64_string)
+        argument = string.split("-")
+    except Exception as e:
+        return await client.send_message(user_id, "⚠️ **Invalid Link or File Hash!**")
+
+    db_channel_id = abs(get_db_channel_id(client))
+    ids = []
+    if len(argument) == 3:
+        start = int(int(argument[1]) / db_channel_id)
+        end = int(int(argument[2]) / db_channel_id)
+        ids = range(start, end + 1) if start <= end else list(range(start, end - 1, -1))
+    elif len(argument) == 2:
+        ids = [int(int(argument[1]) / db_channel_id)]
+
+    cancel_tasks[user_id] = False
+    wait_markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("𝙳𝙴𝚅𝙴𝙻𝙾𝙿𝙴𝚁🛠️", url="https://t.me/HDFILM0900_BOT", style=enums.ButtonStyle.PRIMARY)],
+        [InlineKeyboardButton("🌀 𝙲𝙰𝙽𝙲𝙴𝙻 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)]
+    ])
+    
+    temp_msg = await client.send_message(user_id, "<b>🔺ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ</b>", reply_markup=wait_markup)
+
+    try:
+        messages = await get_messages(client, ids)
+    except Exception as e:
+        await client.send_message(user_id, "Something went wrong!")
+        try: await temp_msg.delete()
+        except: pass
+        return
+
+    codeflix_msgs = []
+    for msg in messages:
+        await asyncio.sleep(0.05)
+        if cancel_tasks.get(user_id, False) is True:
+            break
+        if msg.service or (not msg.text and not msg.media):
+            continue
+
+        caption = (CUSTOM_CAPTION.format(previouscaption="" if not msg.caption else msg.caption.html, 
+                                         filename=msg.document.file_name) if bool(CUSTOM_CAPTION) and bool(msg.document)
+                   else ("" if not msg.caption else msg.caption.html))
+
+        reply_markup = msg.reply_markup if DISABLE_CHANNEL_BUTTON else None
+
+        try:
+            copied_msg = await msg.copy(chat_id=user_id, caption=caption, parse_mode=ParseMode.HTML, 
+                                        reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
+            codeflix_msgs.append(copied_msg)
+        except FloodWait as e:
+            await asyncio.sleep(e.x)
+            copied_msg = await msg.copy(chat_id=user_id, caption=caption, parse_mode=ParseMode.HTML, 
+                                        reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
+            codeflix_msgs.append(copied_msg)
+        except Exception:
+            pass
+        await asyncio.sleep(1)
+
+    cancel_tasks.pop(user_id, False)
+    try: await temp_msg.delete()
+    except: pass
+
+    FILE_AUTO_DELETE = await db.get_del_timer()
+    if FILE_AUTO_DELETE > 0:
+        notification_msg = await client.send_message(
+            user_id,
+            f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇᴅ ɪɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ʙᴇғᴏʀᴇ ɪᴛ ɢᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b>"
+        )
+        await asyncio.sleep(FILE_AUTO_DELETE)
+
+        for snt_msg in codeflix_msgs:
+            if snt_msg:
+                try: await snt_msg.delete()
+                except: pass
+
+        try:
+            await notification_msg.edit("<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!</b>")
+        except: pass
 
 
 # ==============================================================================
@@ -412,8 +523,6 @@ async def not_joined(client: Client, message: Message):
         all_channels = await db.show_channels()  
         for total, chat_id in enumerate(all_channels, start=1):
             mode = await db.get_channel_mode(chat_id)  
-
-            await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
 
             if not await is_sub(client, user_id, chat_id):
                 try:
@@ -568,8 +677,7 @@ async def list_premium_users_command(client, message):
 
             user_info = await client.get_users(user_id)
             username = user_info.username if user_info.username else "No Username"
-            first_name = user_info.first_name
-            mention=user_info.mention
+            mention = user_info.mention
 
             days, hours, minutes, seconds = (
                 remaining_time.days,
