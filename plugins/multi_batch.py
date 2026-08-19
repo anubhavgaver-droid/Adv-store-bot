@@ -2,11 +2,14 @@ import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.enums import ChatMemberStatus
-from bot import Bot
 from helper_func import admin, encode
 
-# ✅ Correct Database Import
+# ✅ Bot Instance Import (Isi se handlers register hote hain)
+from bot import Bot
+
+# ✅ Database Import
 from database.database import db
+
 
 # --- Helper Functions ---
 async def get_chat_and_msg_id(client: Client, message: Message):
@@ -30,12 +33,17 @@ async def get_chat_and_msg_id(client: Client, message: Message):
             return None, None
     return None, None
 
-async def is_bot_admin(client: Client, chat_id: int) -> bool:
+
+# DB Channel ID Safe Fetcher
+def get_db_channel_id(client: Client):
+    if hasattr(client, "db_channel") and client.db_channel:
+        return getattr(client.db_channel, "id", client.db_channel)
     try:
-        member = await client.get_chat_member(chat_id, "me")
-        return member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]
+        from config import DB_CHANNEL
+        return DB_CHANNEL
     except Exception:
-        return False
+        return None
+
 
 # Admin Menu Show Karne Ka Function
 async def show_admin_batch_menu(client: Client, user_id: int, batch_id: str, message_to_edit=None):
@@ -43,19 +51,21 @@ async def show_admin_batch_menu(client: Client, user_id: int, batch_id: str, mes
     ranges = batch_data.get("ranges", []) if batch_data else []
 
     buttons = []
+    # Purane Saare Ranges Button format mein
     for index, item in enumerate(ranges):
         buttons.append([
             InlineKeyboardButton(f"📺 {item['title']}", callback_data="ignore"),
             InlineKeyboardButton("❌ Delete", callback_data=f"del_mrange_{batch_id}_{index}")
         ])
 
+    # Naya Episode Range Jodne ke liye Plus (+) Button
     buttons.append([InlineKeyboardButton("➕ Add New Episode Range (+)", callback_data=f"add_mrange_{batch_id}")])
     buttons.append([InlineKeyboardButton("🔗 Get Master Share Link", callback_data=f"get_mlink_{batch_id}")])
 
     markup = InlineKeyboardMarkup(buttons)
     text = (
         f"⚙️ **Multi-Batch Editor:** `{batch_id}`\n\n"
-        f"Total Episode Buttons: `{len(ranges)}`\n"
+        f"Total Episode Buttons: `{len(ranges)}`\n\n"
         f"Naya episode range add karne ke liye **➕ Add** button par click karein."
     )
 
@@ -84,10 +94,42 @@ async def multi_batch_cmd(client: Client, message: Message):
 
 
 # ==============================================================================
-# 2. Callback Query Handler
+# 2. User Master Link Click Handler (/start mbatch_...)
+# ==============================================================================
+@Bot.on_message(filters.private & filters.command("start") & filters.regex(r"mbatch_"))
+async def start_mbatch_handler(client: Client, message: Message):
+    try:
+        text_data = message.text.split()
+        if len(text_data) > 1:
+            batch_id = text_data[1].replace("mbatch_", "").strip().lower()
+            batch_data = await db.multi_batches.find_one({"batch_id": batch_id})
+
+            if not batch_data or not batch_data.get("ranges"):
+                await message.reply_text("❌ **No episodes found in this batch!**")
+                return
+
+            ranges = batch_data.get("ranges", [])
+            buttons = []
+            for index, item in enumerate(ranges):
+                buttons.append([
+                    InlineKeyboardButton(f"📺 {item['title']}", callback_data=f"user_mget_{batch_id}_{index}")
+                ])
+
+            markup = InlineKeyboardMarkup(buttons)
+            await message.reply_text(
+                f"🎬 **Multi-Batch Episodes:** `{batch_id}`\n\nNiche diye gaye button par click karke episodes prapt karein:",
+                reply_markup=markup
+            )
+    except Exception as e:
+        await message.reply_text(f"❌ **Error:** `{e}`")
+
+
+# ==============================================================================
+# 3. Callback Query Handler (Add, Delete, Get Link & User Get Buttons)
 # ==============================================================================
 @Bot.on_callback_query(filters.regex(r"^(add_mrange_|del_mrange_|get_mlink_|user_mget_)"))
 async def multi_batch_callbacks(client: Client, query: CallbackQuery):
+    await query.answer()
     data = query.data
 
     # --- Naya Range Add karna (+) ---
@@ -95,33 +137,46 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
         batch_id = data.replace("add_mrange_", "")
         chat_id = query.from_user.id
 
+        # Step 1: Button Title
         try:
             title_msg = await client.ask(
                 chat_id=chat_id,
                 text="📝 **Enter Button Name/Title:**\n\n(Example: `Ep 1 to 100` ya `Season 1`)",
                 timeout=60
             )
-        except Exception:
+            if not title_msg or not title_msg.text:
+                await query.message.reply("❌ Invalid title!")
+                return
+            btn_title = title_msg.text.strip()
+        except Exception as e:
+            await query.message.reply(f"❌ **Timeout/Error:** `{e}`")
             return
-        btn_title = title_msg.text.strip()
 
+        # Step 2: First Message
         try:
             f_msg = await client.ask(
                 chat_id=chat_id,
                 text=f" Forward First Message for **'{btn_title}'** from Channel OR send link:",
                 timeout=60
             )
-        except Exception:
+            if not f_msg:
+                return
+        except Exception as e:
+            await query.message.reply(f"❌ **Timeout/Error:** `{e}`")
             return
         f_chat_id, f_msg_id = await get_chat_and_msg_id(client, f_msg)
 
+        # Step 3: Last Message
         try:
             s_msg = await client.ask(
                 chat_id=chat_id,
                 text=f" Forward Last Message for **'{btn_title}'** from Channel OR send link:",
                 timeout=60
             )
-        except Exception:
+            if not s_msg:
+                return
+        except Exception as e:
+            await query.message.reply(f"❌ **Timeout/Error:** `{e}`")
             return
         s_chat_id, s_msg_id = await get_chat_and_msg_id(client, s_msg)
 
@@ -129,17 +184,19 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
             await query.message.reply("❌ Invalid links/messages or different channels!")
             return
 
+        db_channel_id = get_db_channel_id(client)
+
         status = await query.message.reply("⏳ Storing episodes in DB channel...")
         copied_start, copied_end = None, None
 
-        if f_chat_id == client.db_channel.id:
+        if f_chat_id == db_channel_id:
             copied_start, copied_end = f_msg_id, s_msg_id
         else:
             for m_id in range(f_msg_id, s_msg_id + 1):
                 try:
                     m = await client.get_messages(f_chat_id, m_id)
                     if m and not m.empty:
-                        cp = await m.copy(client.db_channel.id, disable_notification=True)
+                        cp = await m.copy(db_channel_id, disable_notification=True)
                         if copied_start is None:
                             copied_start = cp.id
                         copied_end = cp.id
@@ -159,7 +216,8 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
     # --- Master Link Get karna ---
     elif data.startswith("get_mlink_"):
         batch_id = data.replace("get_mlink_", "")
-        link = f"https://t.me/{client.username}?start=mbatch_{batch_id}"
+        bot_username = client.me.username if getattr(client, "me", None) else (await client.get_me()).username
+        link = f"https://t.me/{bot_username}?start=mbatch_{batch_id}"
         reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Share URL", url=f'https://telegram.me/share/url?url={link}')]])
         await query.message.reply_text(f"✨ **Here is your Master Episode Link:**\n\n{link}", reply_markup=reply_markup)
 
@@ -168,7 +226,7 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
         _, _, batch_id, index = data.split("_")
         index = int(index)
         batch_data = await db.multi_batches.find_one({"batch_id": batch_id})
-        ranges = batch_data.get("ranges", [])
+        ranges = batch_data.get("ranges", []) if batch_data else []
         if 0 <= index < len(ranges):
             ranges.pop(index)
             await db.multi_batches.update_one({"batch_id": batch_id}, {"$set": {"ranges": ranges}})
@@ -179,7 +237,13 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
         _, _, batch_id, index = data.split("_")
         index = int(index)
         batch_data = await db.multi_batches.find_one({"batch_id": batch_id})
+        
+        if not batch_data or "ranges" not in batch_data or index >= len(batch_data["ranges"]):
+            await query.answer("❌ Invalid batch or episode range!", show_alert=True)
+            return
+
         target_range = batch_data["ranges"][index]
+        db_channel_id = get_db_channel_id(client)
 
         await query.answer(f"Sending {target_range['title']}...", show_alert=False)
 
@@ -187,7 +251,7 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
             try:
                 await client.copy_message(
                     chat_id=query.from_user.id,
-                    from_chat_id=client.db_channel.id,
+                    from_chat_id=db_channel_id,
                     message_id=m_id
                 )
                 await asyncio.sleep(0.5)
