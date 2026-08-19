@@ -23,7 +23,7 @@ from pytz import timezone
 
 logger = logging.getLogger(__name__)
 
-# ==================== GLOBAL PATCH ====================
+# ==================== GLOBAL MONKEY PATCH ====================
 original_reply = Message.reply
 async def patched_reply(self, *args, **kwargs):
     kwargs.setdefault('quote', False)
@@ -41,21 +41,21 @@ async def patched_reply_photo(self, *args, **kwargs):
     kwargs.setdefault('quote', False)
     return await original_reply_photo(self, *args, **kwargs)
 Message.reply_photo = patched_reply_photo
-# ======================================================
+# ==============================================================
 
 BAN_SUPPORT = f"{BAN_SUPPORT}"
 TUT_VID = f"{TUT_VID}"
 
-# Global dict for cancellation tracking
+# Global dict for tracking cancelled deliveries
 cancel_tasks = {}
 
-# Safe DB Channel ID Fetcher
+# 🛡️ Safe DB Channel Fetcher
 def get_db_channel_id(client: Client):
     if hasattr(client, "db_channel") and client.db_channel:
         return getattr(client.db_channel, "id", client.db_channel)
     return DB_CHANNEL
 
-# Safe MongoDB Collection Access for Multi-Batch
+# 🛡️ Safe MongoDB Collection Access
 def get_mb_collection():
     if hasattr(db, "multi_batches"):
         return db.multi_batches
@@ -66,7 +66,7 @@ def get_mb_collection():
     else:
         return db.db["multi_batches"]
 
-# Helper Function for Channel Message Parsing
+# 🛠️ Channel Link / Forward Msg Parser
 async def get_chat_and_msg_id(client: Client, message: Message):
     if message.forward_from_chat:
         return message.forward_from_chat.id, message.forward_from_message_id
@@ -85,13 +85,13 @@ async def get_chat_and_msg_id(client: Client, message: Message):
                 chat_id = chat.id
             return chat_id, msg_id
         except Exception as e:
-            logger.error(f"Link Parse Error: {e}")
+            logger.error(f"❌ [LINK PARSE ERROR] {e}")
             return None, None
     return None, None
 
 
 # ==============================================================================
-# 🚀 MAIN /start COMMAND HANDLER
+# 🚀 1. MAIN /start COMMAND HANDLER
 # ==============================================================================
 @Bot.on_message(filters.command('start') & filters.private)
 async def start_command(client: Client, message: Message):
@@ -113,12 +113,11 @@ async def start_command(client: Client, message: Message):
     if not await is_subscribed(client, user_id):
         return await not_joined(client, message)
 
-    # Check Ban Status
+    # ✅ Check Ban Status
     banned_users = await db.get_ban_users()
     if user_id in banned_users:
         return await message.reply_text(
-            "<b>⛔️ You are Bᴀɴɴᴇᴅ from using this bot.</b>\n\n"
-            "<i>Contact support if you think this is a mistake.</i>",
+            "<b>⛔️ You are Bᴀɴɴᴇᴅ from using this bot.</b>",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Contact Support", url=BAN_SUPPORT)]])
         )
 
@@ -131,7 +130,7 @@ async def start_command(client: Client, message: Message):
         except IndexError:
             return
 
-        # 🔐 Token Verification Check
+        # 🔐 Token Verification System
         verify_status = await db.get_verify_status(user_id) or {}
 
         if SHORTLINK_URL or SHORTLINK_API:
@@ -167,12 +166,12 @@ async def start_command(client: Client, message: Message):
                     [InlineKeyboardButton("• ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
                 ]
                 return await message.reply(
-                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. Please refresh your token to continue..</b>\n\n<b>Token Timeout:</b> {get_exp_time(VERIFY_EXPIRE)}",
+                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. Please refresh your token to continue.</b>\n\n<b>Token Timeout:</b> {get_exp_time(VERIFY_EXPIRE)}",
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=True
                 )
 
-        # 🎬 A) MULTI-BATCH MASTER LINK HANDLING
+        # 🎬 A) MULTI-BATCH MASTER LINK PAYLOAD
         if base64_string.startswith("mbatch_"):
             batch_id = base64_string.replace("mbatch_", "").strip().lower()
             mb_col = get_mb_collection()
@@ -196,7 +195,7 @@ async def start_command(client: Client, message: Message):
                 reply_markup=markup
             )
 
-        # 📦 B) SINGLE / STANDARD BATCH FILE HANDLING
+        # 📦 B) SINGLE / STANDARD BATCH FILE PAYLOAD
         string = await decode(base64_string)
         argument = string.split("-")
 
@@ -271,7 +270,7 @@ async def start_command(client: Client, message: Message):
 
         if FILE_AUTO_DELETE > 0 and codeflix_msgs:
             notification_msg = await message.reply(
-                f"<b>This file will be deleted in {get_exp_time(FILE_AUTO_DELETE)}. Please save or forward it!</b>"
+                f"<b>This file will be deleted in {get_exp_time(FILE_AUTO_DELETE)}. Save or forward it!</b>"
             )
 
             await asyncio.sleep(FILE_AUTO_DELETE)
@@ -314,7 +313,7 @@ async def start_command(client: Client, message: Message):
 
 
 # ==============================================================================
-# ⚙️ MULTI-BATCH ADMIN & USER CALLBACK SYSTEM
+# ⚙️ 2. MULTI-BATCH ADMIN MENU & COMMAND
 # ==============================================================================
 
 async def show_admin_batch_menu(client: Client, user_id: int, batch_id: str, message_to_edit=None):
@@ -348,7 +347,7 @@ async def show_admin_batch_menu(client: Client, user_id: int, batch_id: str, mes
 @Bot.on_message(filters.command("multi_batch") & filters.private & admin)
 async def multi_batch_cmd(client: Client, message: Message):
     if len(message.command) < 2:
-        return await message.reply_text("❌ <b>Usage:</b> <code>/multi_batch <batch_name></code>\n\nExample: <code>/multi_batch naruto</code>")
+        return await message.reply_text("❌ <b>Usage:</b> <code>/multi_batch <batch_name></code>\n\nExample: <code>/multi_batch naruto_series</code>")
 
     batch_id = message.command[1].strip().lower()
     mb_col = get_mb_collection()
@@ -360,7 +359,10 @@ async def multi_batch_cmd(client: Client, message: Message):
     await show_admin_batch_menu(client, message.from_user.id, batch_id)
 
 
-# 🎬 ALL MULTI-BATCH CALLBACK HANDLERS (Episode Click, Add Range, Delete Range, Link)
+# ==============================================================================
+# 🎬 3. COMBINED CALLBACK QUERY HANDLER (Admin & User Actions)
+# ==============================================================================
+
 @Bot.on_callback_query(filters.regex(r"^(add_mrange_|del_mrange_|get_mlink_|user_mget_|ignore)"))
 async def multi_batch_callbacks(client: Client, query: CallbackQuery):
     data = query.data
@@ -370,13 +372,13 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
         return await query.answer("यह सिर्फ़ टाइटल बटन है।", show_alert=False)
 
     try:
-        # --- 1. USER CLICKS EPISODE BUTTON (e.g. Ep 1 to 100) ---
+        # 🟢 A) USER CLICKS EPISODE RANGE BUTTON (e.g. Ep 1 to 100)
         if data.startswith("user_mget_"):
             raw_data = data.replace("user_mget_", "")
-            batch_id, index_str = raw_data.rsplit("_", 1)
+            batch_id, index_str = raw_data.rsplit("_", 1)  # Safe split for underscores in batch_id
             index = int(index_str)
 
-            # 🔐 Token Verification Check for Episode Click
+            # Verification Check
             is_premium = await is_premium_user(user_id)
             verify_status = await db.get_verify_status(user_id) or {}
 
@@ -394,7 +396,7 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
                         [InlineKeyboardButton("• 𝚅𝙴𝚁𝙸𝙵𝚈 •", url=link), InlineKeyboardButton("• ᴛᴜᴛᴏʀɪᴀʟ •", url=TUT_VID)],
                         [InlineKeyboardButton("• ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
                     ]
-                    await query.answer("⚠️ Verification required!", show_alert=True)
+                    await query.answer("⚠️ Token verification required!", show_alert=True)
                     return await query.message.reply(
                         f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. Please refresh your token to continue..</b>\n\n<b>Token Timeout:</b> {get_exp_time(VERIFY_EXPIRE)}",
                         reply_markup=InlineKeyboardMarkup(btn),
@@ -455,7 +457,7 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
                 except Exception: pass
             return
 
-        # --- 2. ADMIN: ADD NEW RANGE ---
+        # 🟡 B) ADMIN: ADD NEW RANGE
         elif data.startswith("add_mrange_"):
             await query.answer()
             batch_id = data.replace("add_mrange_", "")
@@ -465,10 +467,10 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
                 return await query.message.reply("❌ Invalid title!")
             btn_title = title_msg.text.strip()
 
-            f_msg = await client.ask(chat_id=user_id, text=f"Forward First Message for **'{btn_title}'** from DB Channel or send link:", timeout=60)
+            f_msg = await client.ask(chat_id=user_id, text=f" Forward First Message for **'{btn_title}'** from DB Channel or send link:", timeout=60)
             f_chat_id, f_msg_id = await get_chat_and_msg_id(client, f_msg)
 
-            s_msg = await client.ask(chat_id=user_id, text=f"Forward Last Message for **'{btn_title}'** from DB Channel or send link:", timeout=60)
+            s_msg = await client.ask(chat_id=user_id, text=f" Forward Last Message for **'{btn_title}'** from DB Channel or send link:", timeout=60)
             s_chat_id, s_msg_id = await get_chat_and_msg_id(client, s_msg)
 
             if not f_chat_id or not s_chat_id or f_chat_id != s_chat_id:
@@ -498,7 +500,7 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
             await mb_col.update_one({"batch_id": batch_id}, {"$push": {"ranges": new_range}})
             return await show_admin_batch_menu(client, user_id, batch_id)
 
-        # --- 3. ADMIN: GET MASTER LINK ---
+        # 🔵 C) ADMIN: GET MASTER SHARE LINK
         elif data.startswith("get_mlink_"):
             await query.answer()
             batch_id = data.replace("get_mlink_", "")
@@ -507,11 +509,11 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
             reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Share URL", url=f'https://telegram.me/share/url?url={link}')]])
             return await query.message.reply_text(f"✨ **Here is your Master Episode Link:**\n\n{link}", reply_markup=reply_markup)
 
-        # --- 4. ADMIN: DELETE RANGE ---
+        # 🔴 D) ADMIN: DELETE RANGE (Safe Split Fix)
         elif data.startswith("del_mrange_"):
             await query.answer()
             raw = data.replace("del_mrange_", "")
-            batch_id, index_str = raw.rsplit("_", 1)
+            batch_id, index_str = raw.rsplit("_", 1)  # Fixes crash when batch_id contains '_'
             index = int(index_str)
 
             mb_col = get_mb_collection()
@@ -529,7 +531,7 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
 
 
 # ==============================================================================
-# 🌀 CANCEL DELIVERY & STANDARD CALLBACKS
+# 🌀 4. CANCEL DELIVERY HANDLER
 # ==============================================================================
 
 @Bot.on_callback_query(filters.regex(r"^cancel_delivery_"))
@@ -549,7 +551,7 @@ async def cancel_delivery_callback(client: Client, query: CallbackQuery):
 
 
 # ==============================================================================
-# 👑 PREMIUM & ADMIN COMMANDS
+# 👑 5. PREMIUM COMMAND HANDLERS
 # ==============================================================================
 
 @Bot.on_message(filters.command("myplan") & filters.private)
