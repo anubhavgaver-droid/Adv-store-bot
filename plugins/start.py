@@ -95,7 +95,7 @@ async def start_command(client: Client, message: Message):
         except Exception as e:
             logger.error(f"Error adding user {user_id} to database: {e}")
 
-    # ✅ Check Force Subscription First (Subscribers Verification)
+    # Check Force Subscription First (Subscribers Verification)
     if not await is_subscribed(client, user_id):
         return await not_joined(client, message)
 
@@ -120,7 +120,7 @@ async def start_command(client: Client, message: Message):
         except IndexError:
             return
 
-        # 🔥 Multi-Batch Deep Link Support Check (`mbatch_`)
+        # Multi-Batch Deep Link Support Check (`mbatch_`)
         if base64_string.startswith("mbatch_"):
             return await handle_multi_batch_start(client, message, base64_string)
 
@@ -327,7 +327,7 @@ async def start_command(client: Client, message: Message):
 
 
 # ==============================================================================
-# 🔥 MULTI-BATCH START HANDLER (Shows Episode Buttons)
+# MULTI-BATCH START HANDLER (Shows Episode Buttons)
 # ==============================================================================
 async def handle_multi_batch_start(client: Client, message: Message, payload: str):
     try:
@@ -356,7 +356,7 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
 
 
 # ==============================================================================
-# 🔥 FULLY LOADED USER EPISODE DELIVERY CALLBACK HANDLER
+# USER EPISODE DELIVERY CALLBACK HANDLER
 # ==============================================================================
 @Bot.on_callback_query(filters.regex(r"^user_mget_"), group=-1)
 async def user_mget_callback(client: Client, query: CallbackQuery):
@@ -423,14 +423,9 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
         # 3. Please Wait Message & Cancel Button Markup
         wait_markup = InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("<Image src="image_agent_tag_9050418363352223847" alt="Python logo illustration for programming" caption="Python Asyncio Engine" />
-
-```python
-                InlineKeyboardButton("<Image alt="Python Async Programming" caption="Python Async Processing" src="image_agent_tag_4277112246023525547"/>
-
-```python
                 InlineKeyboardButton("𝙳𝙴𝚅𝙴𝙻𝙾𝙿𝙴𝚁🛠️", url="https://t.me/HDFILM0900_BOT", style=enums.ButtonStyle.PRIMARY)
-            ],[
+            ],
+            [
                 InlineKeyboardButton("🌀 𝙲𝙰𝙽𝙲𝙴𝙻 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)
             ]
         ])
@@ -499,7 +494,7 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
         FILE_AUTO_DELETE = await db.get_del_timer()
         if FILE_AUTO_DELETE > 0:
             notification_msg = await query.message.reply(
-                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇᴅ ɪɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢES ʙᴇғᴏʀᴇ ɪᴛ ɢᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b>"
+                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇᴅ ɪɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ʙᴇғᴏʀᴇ ɪᴛ ɢᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b>"
             )
 
             await asyncio.sleep(FILE_AUTO_DELETE)
