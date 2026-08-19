@@ -44,7 +44,6 @@ Message.reply_photo = patched_reply_photo
 # ==================================================================
 
 BAN_SUPPORT = f"{BAN_SUPPORT}"
-TUT_VID = f"{TUT_VID}"
 
 # Global dict for active cancellation tracking
 cancel_tasks = {}
@@ -111,12 +110,21 @@ async def start_command(client: Client, message: Message):
             return await handle_multi_batch_start(client, message, base64_string)
 
         # ----------------------------------------------------------------------
-        # STANDARD BATCH & SINGLE FILE DELIVERY ENGINE (Optimized Fast Token)
+        # DYNAMIC VERIFICATION ENGINE (Database Driven Settings)
         # ----------------------------------------------------------------------
         verify_status = await db.get_verify_status(id)
 
-        if SHORTLINK_URL and SHORTLINK_API:
-            if verify_status['is_verified'] and VERIFY_EXPIRE < (time.time() - verify_status['verified_time']):
+        # Dynamic Settings Fetching from Database
+        bot_settings = await db.get_bot_settings()
+        verify_mode = bot_settings.get('verify_mode', True)
+        shortlink_url = bot_settings.get('shortlink_url', SHORTLINK_URL)
+        shortlink_api = bot_settings.get('shortlink_api', SHORTLINK_API)
+        tut_vid = bot_settings.get('tut_vid', TUT_VID)
+        verify_expire = bot_settings.get('verify_expire', VERIFY_EXPIRE)
+
+        # Verification system trigger check
+        if verify_mode and shortlink_url and shortlink_api:
+            if verify_status['is_verified'] and verify_expire < (time.time() - verify_status['verified_time']):
                 await db.update_verify_status(user_id, is_verified=False)
                 verify_status['is_verified'] = False 
 
@@ -136,7 +144,7 @@ async def start_command(client: Client, message: Message):
                 btn = [[InlineKeyboardButton("🚀 Gᴇᴛ Fɪʟᴇ Nᴏᴡ", url=f"https://t.me/{client.username}?start={file_id}")]]
                 
                 return await message.reply(
-                    f"✅ <b>𝗧𝗼𝗸𝗲𝗻 𝘃𝗲𝗿𝗶𝗳𝗶𝗲𝗱!</b>\n\nVαʟɪᴅ ғᴏʀ: {get_exp_time(VERIFY_EXPIRE)}\n\n"
+                    f"✅ <b>𝗧𝗼𝗸𝗲𝗻 𝘃𝗲𝗿𝗶𝗳𝗶𝗲𝗱!</b>\n\nVαʟɪᴅ ғᴏʀ: {get_exp_time(verify_expire)}\n\n"
                     "Cʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ғɪʟᴇ 👇",
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=True
@@ -146,20 +154,20 @@ async def start_command(client: Client, message: Message):
                 token = ''.join(random.choices(rohit.ascii_letters + rohit.digits, k=10))
                 await db.update_verify_status(id, verify_token=token, link=base64_string)
                 
-                # Fast Direct Link Generation (Without chat_action delay)
-                link = await get_shortlink(SHORTLINK_URL, SHORTLINK_API, f'https://t.me/{client.username}?start=verify_{token}')
+                # Fast Direct Link Generation
+                link = await get_shortlink(shortlink_url, shortlink_api, f'https://t.me/{client.username}?start=verify_{token}')
                 btn = [
                     [InlineKeyboardButton("• 𝚅𝙴𝚁𝙸𝙵𝙸𝙴𝙳 •", url=link),
-                     InlineKeyboardButton("• ᴛᴜᴛᴏʀɪᴀʟ •", url=TUT_VID)],
+                     InlineKeyboardButton("• ᴛᴜᴛᴏʀɪᴀʟ •", url=tut_vid)],
                     [InlineKeyboardButton("• ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
                 ]
                 return await message.reply(
-                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ 𝘁𝗼𝗸𝗲𝗻 𝘁ᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
+                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ 𝘁𝗼𝗸𝗲𝗻 𝘁ᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(verify_expire)}",
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=True
                 )
 
-        # Decode standard Base64 Batch / Single File Hash
+        # Standard Base64 Batch / Single File Hash Processing
         try:
             string = await decode(base64_string)
             argument = string.split("-")
@@ -307,7 +315,7 @@ async def start_command(client: Client, message: Message):
 
 
 # ==============================================================================
-# 🔥 MULTI-BATCH START HANDLER (URL Buttons + Auto Delete after 1 Min)
+# MULTI-BATCH START HANDLER (URL Buttons + Auto Delete after 1 Min)
 # ==============================================================================
 async def handle_multi_batch_start(client: Client, message: Message, payload: str):
     try:
@@ -331,7 +339,6 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
                 raw_string = f"get-{start_id * db_channel_id}-{end_id * db_channel_id}"
                 batch_hash = await encode(raw_string)
 
-            # URL Button (Deep Link)
             batch_url = f"https://t.me/{client.username}?start={batch_hash}"
 
             buttons.append([
@@ -340,7 +347,6 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
 
         markup = InlineKeyboardMarkup(buttons)
         
-        # M-Batch बटन का मैसेज भेजें
         mbatch_msg = await message.reply_text(
             f"🎬 **Multi-Batch Episodes:** `{batch_id.upper()}`\n\n"
             f"👇 **नीचे दिए गए बटन पर क्लिक करके एपिसोड प्राप्त करें:**\n\n"
@@ -348,7 +354,6 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
             reply_markup=markup
         )
 
-        # 🔥 1 मिनट (60 सेकंड) बाद यह बटन मैसेज अपने आप डिलीट हो जाएगा
         await asyncio.sleep(60)
         try:
             await mbatch_msg.delete()
