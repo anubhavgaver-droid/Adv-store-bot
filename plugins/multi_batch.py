@@ -1,5 +1,5 @@
 import asyncio
-import pyromod
+import pyromod.listen
 import logging
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
