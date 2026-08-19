@@ -5,7 +5,7 @@ import motor, asyncio
 import motor.motor_asyncio
 import time
 import pymongo, os
-from config import DB_URI, DB_NAME
+from config import DB_URI, DB_NAME, SHORTLINK_URL, SHORTLINK_API, TUT_VID, VERIFY_EXPIRE
 import logging
 from datetime import datetime, timedelta
 
@@ -49,8 +49,11 @@ class Rohit:
         self.rqst_fsub_data = self.database['request_forcesub']
         self.rqst_fsub_Channel_data = self.database['request_forcesub_channel']
         
-        # ✅ MULTI-BATCH COLLECTION
+        # MULTI-BATCH COLLECTION
         self.multi_batches = self.database['multi_batches']
+
+        # ⚙️ DYNAMIC BOT SETTINGS COLLECTION
+        self.settings_col = self.database['settings']
 
 
     # USER DATA
@@ -245,30 +248,52 @@ class Rohit:
 
 
     # ==============================================================================
-    # ✅ MULTI-BATCH MANAGEMENT (Naye Database Handlers)
+    # MULTI-BATCH MANAGEMENT
     # ==============================================================================
     async def get_multi_batch(self, batch_id: str):
-        """Batch का डेटा निकालता है"""
         return await self.multi_batches.find_one({"batch_id": batch_id})
 
     async def create_multi_batch(self, batch_id: str):
-        """Naya Batch Document बनाता है"""
         batch = await self.get_multi_batch(batch_id)
         if not batch:
             await self.multi_batches.insert_one({"batch_id": batch_id, "ranges": []})
 
     async def add_range_to_multi_batch(self, batch_id: str, new_range: dict):
-        """Batch में Naya Episode Range जोड़ता है"""
         await self.multi_batches.update_one(
             {"batch_id": batch_id},
             {"$push": {"ranges": new_range}}
         )
 
     async def update_multi_batch_ranges(self, batch_id: str, ranges: list):
-        """Range Delete होने पर List Update करता है"""
         await self.multi_batches.update_one(
             {"batch_id": batch_id},
             {"$set": {"ranges": ranges}}
+        )
+
+
+    # ==============================================================================
+    # ⚙️ DYNAMIC BOT SETTINGS MANAGEMENT (एडमिन पैनल के लिए)
+    # ==============================================================================
+    async def get_bot_settings(self):
+        settings = await self.settings_col.find_one({'_id': 'bot_settings'})
+        if not settings:
+            default_settings = {
+                '_id': 'bot_settings',
+                'verify_mode': True,
+                'shortlink_url': SHORTLINK_URL,
+                'shortlink_api': SHORTLINK_API,
+                'tut_vid': TUT_VID,
+                'verify_expire': VERIFY_EXPIRE
+            }
+            await self.settings_col.insert_one(default_settings)
+            return default_settings
+        return settings
+
+    async def update_bot_setting(self, key, value):
+        await self.settings_col.update_one(
+            {'_id': 'bot_settings'},
+            {'$set': {key: value}},
+            upsert=True
         )
 
 
