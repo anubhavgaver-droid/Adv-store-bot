@@ -112,42 +112,21 @@ async def start_command(client: Client, message: Message):
         except IndexError:
             return
 
-        # 🚀 MULTI-BATCH SYSTEM CHECK (Master Episode Link Handling)
-        if base64_string.startswith("mbatch_"):
-            batch_id = base64_string.replace("mbatch_", "").strip().lower()
-            batch_data = await db.multi_batches.find_one({"batch_id": batch_id})
-
-            if not batch_data or not batch_data.get("ranges"):
-                return await message.reply("❌ **Invalid link or no episodes available in this batch!**")
-
-            buttons = []
-            for index, item in enumerate(batch_data["ranges"]):
-                buttons.append([
-                    InlineKeyboardButton(
-                        text=f"🎬 {item['title']}",
-                        callback_data=f"user_mget_{batch_id}_{index}"
-                    )
-                ])
-
-            markup = InlineKeyboardMarkup(buttons)
-            return await message.reply(
-                f"<b>🎬 Select Episode Range:</b>\n\nBatch Name: <code>{batch_id}</code>",
-                reply_markup=markup
-            )
-
-        # Token verification status fetch karein
+        # =====================================================================
+        # 🔐 UNIFIED TOKEN VERIFICATION SYSTEM (All Payloads Covered)
+        # =====================================================================
         verify_status = await db.get_verify_status(id)
 
         if SHORTLINK_URL or SHORTLINK_API:
-            # 🔥 CRITICAL FIX: Pehle check karo ki kya token expire ho chuka hai
-            if verify_status['is_verified'] and VERIFY_EXPIRE < (time.time() - verify_status['verified_time']):
+            # 1️⃣ Check Expiration
+            if verify_status.get('is_verified', False) and VERIFY_EXPIRE < (time.time() - verify_status.get('verified_time', 0)):
                 await db.update_verify_status(user_id, is_verified=False)
                 verify_status['is_verified'] = False 
 
-            # 2️⃣ CASE: Jab banda token verify karke wapas aaye
+            # 2️⃣ CASE: When user completes verification & clicks token link
             if "verify_" in text:
                 _, token = text.split("_", 1)
-                if verify_status['verify_token'] != token:
+                if verify_status.get('verify_token') != token:
                     return await message.reply("⚠️ 𝖨nv𝖺ʟɪᴅ 𝗍ᴏᴋᴇɴ. 𝖯ʟᴇ𝖺𝗌ᴇ /start 𝖺𝗀αɪɴ.")
 
                 await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
@@ -169,8 +148,8 @@ async def start_command(client: Client, message: Message):
                     protect_content=True
                 )
 
-            # 3️⃣ CASE: 🔥 STRICT ENFORCEMENT BLOCK 🔥
-            if not verify_status['is_verified'] and not is_premium:
+            # 3️⃣ CASE: If user is NOT verified and NOT premium -> Enforce Shortener Token
+            if not verify_status.get('is_verified', False) and not is_premium:
                 await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
                 
                 token = ''.join(random.choices(rohit.ascii_letters + rohit.digits, k=10))
@@ -180,15 +159,42 @@ async def start_command(client: Client, message: Message):
                 btn = [
                     [InlineKeyboardButton("• 𝚅𝙴𝚁𝙸𝙵𝚈 •", url=link),
                      InlineKeyboardButton("• ᴛᴜᴛᴏʀɪᴀʟ •", url=TUT_VID)],
-                    [InlineKeyboardButton("• ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
+                    [InlineKeyboardButton("• ʙᴜʏ ᴘʀᴇᴍɪᴜM •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
                 ]
                 return await message.reply(
-                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ ᴛᴏᴋ𝗲ɴ ᴛᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
+                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ ᴛᴏᴋᴇɴ ᴛᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=True
                 )
 
-        # 4️⃣ CASE: Jab banda verified ho (File send karo)
+        # =====================================================================
+        # 🚀 4️⃣ CASE: User Verified / Premium -> Process Payloads
+        # =====================================================================
+
+        # A) MULTI-BATCH MASTER LINK HANDLING
+        if base64_string.startswith("mbatch_"):
+            batch_id = base64_string.replace("mbatch_", "").strip().lower()
+            batch_data = await db.multi_batches.find_one({"batch_id": batch_id})
+
+            if not batch_data or not batch_data.get("ranges"):
+                return await message.reply("❌ <b>Invalid link or no episodes available in this batch!</b>")
+
+            buttons = []
+            for index, item in enumerate(batch_data["ranges"]):
+                buttons.append([
+                    InlineKeyboardButton(
+                        text=f"🎬 {item['title']}",
+                        callback_data=f"user_mget_{batch_id}_{index}"
+                    )
+                ])
+
+            markup = InlineKeyboardMarkup(buttons)
+            return await message.reply(
+                f"<b>🎬 Select Episode Range:</b>\n\nBatch Name: <code>{batch_id}</code>",
+                reply_markup=markup
+            )
+
+        # B) SINGLE / STANDARD BATCH FILE HANDLING
         string = await decode(base64_string)
         argument = string.split("-")
 
@@ -210,6 +216,7 @@ async def start_command(client: Client, message: Message):
 
         cancel_tasks[user_id] = False
 
+        # Unified UI Wait Markup (Developer + Cancel)
         wait_markup = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("𝙳𝙴𝚅𝙴𝙻𝙾𝙿𝙴𝚁🛠️", url="https://t.me/HDFILM0900_BOT", style=enums.ButtonStyle.PRIMARY)
@@ -217,7 +224,7 @@ async def start_command(client: Client, message: Message):
                 InlineKeyboardButton("🌀 𝙲𝙰𝙽𝙲𝙴𝙻 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)
             ]
         ])
-        temp_msg = await message.reply("<b>🔺ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ</b>", reply_markup=wait_markup)
+        temp_msg = await message.reply("<b>🔺 ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...</b>", reply_markup=wait_markup)
         
         try:
             messages = await get_messages(client, ids)
@@ -271,12 +278,12 @@ async def start_command(client: Client, message: Message):
             pass
 
         if was_cancelled:
-            await message.reply_text("❌ **File delivery has been cancelled successfully.**")
+            await message.reply_text("❌ <b>Delivery cancelled successfully!</b>")
             return
 
         if FILE_AUTO_DELETE > 0:
             notification_msg = await message.reply(
-                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇ Deleted ɪɴ  {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢES ʙᴇғᴏʀᴇ ɪᴛ ɢᴇᴛs DᴇʟᴇᴛᴇDeleted.</b>"
+                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇᴅ ɪɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs.</b>"
             )
 
             await asyncio.sleep(FILE_AUTO_DELETE)
@@ -299,11 +306,11 @@ async def start_command(client: Client, message: Message):
                 ) if reload_url else None
 
                 await notification_msg.edit(
-                    "<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱ|ꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!\n\nᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ᴅᴇʟᴇᴛᴇᴅ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ 👇</b>",
+                    "<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!\n\nᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ᴅᴇʟᴇᴛᴇᴅ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ 👇</b>",
                     reply_markup=keyboard
                 )
             except Exception as e:
-                print(f"Error updating notification with 'Get File Again' button: {e}")
+                print(f"Error updating notification: {e}")
     else:
         try:
             sticker_msg = await message.reply_sticker(sticker=START_STICKER)
@@ -387,13 +394,40 @@ async def multi_batch_cmd(client: Client, message: Message):
 @Bot.on_callback_query(filters.regex(r"^(add_mrange_|del_mrange_|get_mlink_|user_mget_)"))
 async def multi_batch_callbacks(client: Client, query: CallbackQuery):
     data = query.data
+    user_id = query.from_user.id
 
-    # --- 1. User Clicks Episode Button ---
+    # --- 1. User Clicks Episode Range Button ---
     if data.startswith("user_mget_"):
         _, _, batch_id, index = data.split("_")
         index = int(index)
+
+        # 🔐 Episode Click Token Verification Check
+        is_premium = await is_premium_user(user_id)
+        verify_status = await db.get_verify_status(user_id)
+
+        if SHORTLINK_URL or SHORTLINK_API:
+            if verify_status.get('is_verified', False) and VERIFY_EXPIRE < (time.time() - verify_status.get('verified_time', 0)):
+                await db.update_verify_status(user_id, is_verified=False)
+                verify_status['is_verified'] = False
+
+            if not verify_status.get('is_verified', False) and not is_premium:
+                token = ''.join(random.choices(rohit.ascii_letters + rohit.digits, k=10))
+                await db.update_verify_status(user_id, verify_token=token, link=f"mbatch_{batch_id}")
+                link = await get_shortlink(SHORTLINK_URL, SHORTLINK_API, f'https://t.me/{client.username}?start=verify_{token}')
+                
+                btn = [
+                    [InlineKeyboardButton("• 𝚅𝙴𝚁𝙸𝙵𝚈 •", url=link),
+                     InlineKeyboardButton("• ᴛᴜᴛᴏʀɪᴀʟ •", url=TUT_VID)],
+                    [InlineKeyboardButton("• ʙᴜʏ ᴘʀᴇᴍɪᴜM •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
+                ]
+                await query.answer("⚠️ Verification required!", show_alert=True)
+                return await query.message.reply(
+                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ ᴛᴏᴋ𝗲ɴ ᴛᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
+                    reply_markup=InlineKeyboardMarkup(btn),
+                    protect_content=True
+                )
+
         batch_data = await db.multi_batches.find_one({"batch_id": batch_id})
-        
         if not batch_data or index >= len(batch_data.get("ranges", [])):
             return await query.answer("❌ Episode range unavailable!", show_alert=True)
 
@@ -402,11 +436,15 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
 
         start_id = target_range["start_id"]
         end_id = target_range["end_id"]
-        user_id = query.from_user.id
         cancel_tasks[user_id] = False
 
+        # Unified Wait UI (Developer + Cancel)
         wait_markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌀 𝙲𝙰𝙽𝙲𝙴𝙻 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)]
+            [
+                InlineKeyboardButton("𝙳𝙴𝚅𝙴𝙻𝙾𝙿𝙴𝚁🛠️", url="https://t.me/HDFILM0900_BOT", style=enums.ButtonStyle.PRIMARY)
+            ],[
+                InlineKeyboardButton("🌀 𝙲𝙰𝙽𝙲𝙴𝙻 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)
+            ]
         ])
         temp_msg = await client.send_message(user_id, "<b>🔺 ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ... Fetching Episodes</b>", reply_markup=wait_markup)
 
@@ -429,6 +467,8 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
                 codeflix_msgs.append(copied_msg)
             except FloodWait as e:
                 await asyncio.sleep(e.x)
+                if cancel_tasks.get(user_id, False) is True:
+                    break
                 copied_msg = await client.copy_message(
                     chat_id=user_id,
                     from_chat_id=client.db_channel.id,
@@ -547,7 +587,7 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
         await show_admin_batch_menu(client, query.from_user.id, batch_id, message_to_edit=query.message)
 
 
-# 🔥 FIXED & OVERRIDDEN CALLBACK QUEUE FOR ABSOLUTE SAFETY 🔥
+# 🔥 UNIVERSAL CANCELLATION CALLBACK HANDLER 🔥
 @Bot.on_callback_query(filters.regex(r"^cancel_delivery_"), group=-1)
 async def cancel_delivery_callback(client: Client, callback_query: CallbackQuery):
     try:
