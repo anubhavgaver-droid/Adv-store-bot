@@ -1,243 +1,204 @@
-# ==============================================================================
-# Dynamic Admin Panel & Control Commands
-# ==============================================================================
-
 import asyncio
-from pyrogram import Client, filters, enums
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated
-
+from pyrogram import Client, filters
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ForceReply
 from bot import Bot
 from config import *
 from helper_func import admin
 from database.database import db
 
 # ==============================================================================
-# 🎛️ MAIN ADMIN PANEL COMMAND (/settings ya /panel)
+# 🎛️ MAIN ADMIN PANEL (/settings या /panel)
 # ==============================================================================
 @Bot.on_message(filters.command(['settings', 'panel']) & filters.private & admin)
 async def admin_settings_panel(client: Client, message: Message):
+    await send_main_settings_panel(message)
+
+
+async def send_main_settings_panel(message_or_query):
+    caption = (
+        "<b>HERE IS THE SETTINGS MENU</b>\n\n"
+        "<b>CUSTOMIZE YOUR SETTINGS AS PER YOUR NEED</b>"
+    )
+
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("💎 PREMIUM PLAN", callback_data="set_premium_info")],
+        [InlineKeyboardButton("🪙 TOKEN VERIFICATION", callback_data="panel_verify")],
+        [InlineKeyboardButton("✍️ CUSTOM CAPTION", callback_data="set_caption_info")],
+        [InlineKeyboardButton("📢 CUSTOM FORCE SUBSCRIBE", callback_data="set_fsub_info")],
+        [InlineKeyboardButton("❌ CLOSE", callback_data="close_panel")]
+    ])
+
+    if isinstance(message_or_query, CallbackQuery):
+        await message_or_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+    else:
+        await message_or_query.reply_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+
+
+# ==============================================================================
+# 🪙 TOKEN VERIFICATION SUB-MENU
+# ==============================================================================
+@Bot.on_callback_query(filters.regex("^panel_verify$"))
+async def panel_verify(client: Client, callback_query: CallbackQuery):
     settings = await db.get_bot_settings()
-    del_timer = await db.get_del_timer()
-    
     verify_mode = settings.get('verify_mode', True)
-    verify_status = "🟢 ON (सक्रिय)" if verify_mode else "🔴 OFF (बंद)"
-    short_url = settings.get('shortlink_url', 'Not Set')
-    tut_vid = settings.get('tut_vid', 'Not Set')
-    exp_time = settings.get('verify_expire', 86400) // 3600  # Hours me convert किया गया
-
-    caption = (
-        "<b>⚙️ <u>Dynamic Admin Control Panel</u></b>\n\n"
-        f"<b>• Verification Status:</b> {verify_status}\n"
-        f"<b>• Shortener Domain:</b> <code>{short_url}</code>\n"
-        f"<b>• Tutorial Video:</b> <a href='{tut_vid}'>Link Here</a>\n"
-        f"<b>• Token Expire Time:</b> {exp_time} घंटे\n"
-        f"<b>• File Auto-Delete Time:</b> {del_timer} सेकंड\n\n"
-        "<i>नीचे दिए गए बटन का उपयोग करके सेटिंग बदलें 👇</i>"
-    )
-
-    buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(
-                f"Verify System: {verify_status}", 
-                callback_data="toggle_verify_mode"
-            )
-        ],
-        [
-            InlineKeyboardButton("🌐 Shortener सेट करें", callback_data="set_shortener_info"),
-            InlineKeyboardButton("🎥 Tutorial बदलें", callback_data="set_tutorial_info")
-        ],
-        [
-            InlineKeyboardButton("⏰ Expire Time बदलें", callback_data="set_expire_info"),
-            InlineKeyboardButton("🗑 Auto Delete Timer", callback_data="set_del_timer_info")
-        ],
-        [
-            InlineKeyboardButton("❌ Close Panel", callback_data="close")
-        ]
-    ])
-
-    await message.reply_text(caption, reply_markup=buttons, disable_web_page_preview=True)
-
-
-# ==============================================================================
-# 🔘 TOGGLE VERIFY MODE (ON / OFF) CALLBACK
-# ==============================================================================
-@Bot.on_callback_query(filters.regex("^toggle_verify_mode$"))
-async def toggle_verify_callback(client: Client, callback_query: CallbackQuery):
-    if not await db.admin_exist(callback_query.from_user.id) and callback_query.from_user.id not in ADMINS:
-        return await callback_query.answer("⛔️ आपके पास इसका अधिकार नहीं है!", show_alert=True)
-
-    settings = await db.get_bot_settings()
-    current_mode = settings.get('verify_mode', True)
-    new_mode = not current_mode
     
-    await db.update_bot_setting('verify_mode', new_mode)
-    await callback_query.answer(f"Verification status: {'ON (चालू)' if new_mode else 'OFF (बंद)'}")
+    status_icon = "✅" if verify_mode else "❌"
 
-    # पैनल रिफ्रेश करें
-    del_timer = await db.get_del_timer()
-    verify_status = "🟢 ON (सक्रिय)" if new_mode else "🔴 OFF (बंद)"
-    short_url = settings.get('shortlink_url', 'Not Set')
-    tut_vid = settings.get('tut_vid', 'Not Set')
-    exp_time = settings.get('verify_expire', 86400) // 3600
-
-    caption = (
-        "<b>⚙️ <u>Dynamic Admin Control Panel</u></b>\n\n"
-        f"<b>• Verification Status:</b> {verify_status}\n"
-        f"<b>• Shortener Domain:</b> <code>{short_url}</code>\n"
-        f"<b>• Tutorial Video:</b> <a href='{tut_vid}'>Link Here</a>\n"
-        f"<b>• Token Expire Time:</b> {exp_time} घंटे\n"
-        f"<b>• File Auto-Delete Time:</b> {del_timer} सेकंड\n\n"
-        "<i>नीचे दिए गए बटन का उपयोग करके सेटिंग बदलें 👇</i>"
-    )
+    caption = "<b>MANAGE YOUR TOKEN VERIFICATION SETTINGS FROM HERE GIVEN BELOW BUTTONS</b>"
 
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton(f"Verify System: {verify_status}", callback_data="toggle_verify_mode")],
-        [InlineKeyboardButton("🌐 Shortener सेट करें", callback_data="set_shortener_info"),
-         InlineKeyboardButton("🎥 Tutorial बदलें", callback_data="set_tutorial_info")],
-        [InlineKeyboardButton("⏰ Expire Time बदलें", callback_data="set_expire_info"),
-         InlineKeyboardButton("🗑 Auto Delete Timer", callback_data="set_del_timer_info")],
-        [InlineKeyboardButton("❌ Close Panel", callback_data="close")]
+        [InlineKeyboardButton("⚠️ VERIFY SHORTNER", callback_data="panel_shortener")],
+        [InlineKeyboardButton("🪪 VERIFY TUTORIAL", callback_data="action_set_tut")],
+        [InlineKeyboardButton("⏰ VERIFY TIME", callback_data="action_set_verify_time")],
+        [InlineKeyboardButton(f"🟢 VERIFY IS ON - {status_icon}", callback_data="action_toggle_verify")],
+        [InlineKeyboardButton("ᐸ BACK", callback_data="panel_main")]
     ])
-
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
 
 
 # ==============================================================================
-# ℹ️ INFORMATION CALLBACKS FOR ADMIN PANEL
+# ⚠️ VERIFY SHORTNER MENU (Token Verification ke andar)
 # ==============================================================================
-@Bot.on_callback_query(filters.regex("^set_shortener_info$"))
-async def set_shortener_info(client: Client, callback_query: CallbackQuery):
-    await callback_query.answer(
-        "Shortener बदलने के लिए कमांड का उपयोग करें:\n\n"
-        "/set_shortlink <URL> <API_KEY>\n\n"
-        "उदाहरण:\n/set_shortlink mdisklink.link 1234567890abcdef",
-        show_alert=True
+@Bot.on_callback_query(filters.regex("^panel_shortener$"))
+async def panel_shortener(client: Client, callback_query: CallbackQuery):
+    settings = await db.get_bot_settings()
+    short_url = settings.get('shortlink_url', SHORTLINK_URL)
+    short_api = settings.get('shortlink_api', SHORTLINK_API)
+
+    caption = (
+        "<b>HERE YOU CAN MANAGE YOUR BOT VERIFY SHORTLINK</b>\n\n"
+        f"<b>URL -</b> {short_url}\n"
+        f"<b>API -</b> {short_api}"
     )
 
-@Bot.on_callback_query(filters.regex("^set_tutorial_info$"))
-async def set_tutorial_info(client: Client, callback_query: CallbackQuery):
-    await callback_query.answer(
-        "Tutorial Link बदलने के लिए कमांड का उपयोग करें:\n\n"
-        "/set_tutorial <Video_URL>\n\n"
-        "उदाहरण:\n/set_tutorial https://t.me/HowToOpen/3",
-        show_alert=True
-    )
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("SET SHORTLINK", callback_data="action_set_shortlink"),
+            InlineKeyboardButton("DELETE SHORTLINK", callback_data="action_del_shortlink")
+        ],
+        [InlineKeyboardButton("ᐸ BACK", callback_data="panel_verify")]
+    ])
+    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
 
-@Bot.on_callback_query(filters.regex("^set_expire_info$"))
-async def set_expire_info(client: Client, callback_query: CallbackQuery):
-    await callback_query.answer(
-        "Token Expiry टाइम बदलने के लिए कमांड का उपयोग करें:\n\n"
-        "/set_expire <घंटे>\n\n"
-        "उदाहरण:\n/set_expire 24",
-        show_alert=True
-    )
 
-@Bot.on_callback_query(filters.regex("^set_del_timer_info$"))
-async def set_del_timer_info(client: Client, callback_query: CallbackQuery):
-    await callback_query.answer(
-        "Auto Delete टाइम (सेकंड में) बदलने के लिए कमांड का उपयोग करें:\n\n"
-        "/dlt_time <सेकंड>\n\n"
-        "उदाहरण:\n/dlt_time 600 (10 मिनट के लिए)",
-        show_alert=True
+# ==============================================================================
+# 🤖 SHORTLINK INPUT PROCESS (pyromod listen)
+# ==============================================================================
+@Bot.on_callback_query(filters.regex("^action_set_shortlink$"))
+async def action_set_shortlink(client: Client, callback_query: CallbackQuery):
+    await callback_query.message.delete()
+    user_id = callback_query.from_user.id
+    
+    # Step 1: Shortlink Domain URL
+    msg1 = await client.send_message(
+        chat_id=user_id,
+        text=(
+            "<b>SEND ME A SHORTLINK URL...</b>\n\n"
+            "<b>FORMAT :</b>\n"
+            "<code>https://vjlink.online</code> - ❌\n\n"
+            "<code>vjlink.online</code> - ✅\n\n"
+            "<i>/cancel - CANCEL THIS PROCESS.</i>"
+        ),
+        reply_markup=ForceReply(selective=True)
     )
+    try:
+        res1 = await client.listen(chat_id=user_id, timeout=300)
+    except Exception:
+        return await msg1.edit_text("⏳ Request Timed Out.")
 
-@Bot.on_callback_query(filters.regex("^close$"))
-async def close_callback(client: Client, callback_query: CallbackQuery):
+    if res1.text and res1.text.startswith('/cancel'):
+        return await res1.reply("❌ Cancelled.")
+
+    new_url = res1.text.strip().replace("https://", "").replace("http://", "").rstrip("/")
+
+    # Step 2: Shortlink API Key
+    msg2 = await client.send_message(
+        chat_id=user_id,
+        text="<b>SEND ME SHORTLINK API...</b>",
+        reply_markup=ForceReply(selective=True)
+    )
+    try:
+        res2 = await client.listen(chat_id=user_id, timeout=300)
+    except Exception:
+        return await msg2.edit_text("⏳ Request Timed Out.")
+
+    if res2.text and res2.text.startswith('/cancel'):
+        return await res2.reply("❌ Cancelled.")
+
+    new_api = res2.text.strip()
+
+    # Database update
+    await db.update_bot_setting('shortlink_url', new_url)
+    await db.update_bot_setting('shortlink_api', new_api)
+
+    await res2.reply("✅ **SUCCESSFULLY SET SHORTLINK**")
+
+
+@Bot.on_callback_query(filters.regex("^action_del_shortlink$"))
+async def action_del_shortlink(client: Client, callback_query: CallbackQuery):
+    await db.update_bot_setting('shortlink_url', "")
+    await db.update_bot_setting('shortlink_api', "")
+    await callback_query.answer("🗑 Shortlink deleted!", show_alert=True)
+    await panel_shortener(client, callback_query)
+
+
+# ==============================================================================
+# ⚙️ OTHER VERIFICATION ACTIONS
+# ==============================================================================
+@Bot.on_callback_query(filters.regex("^action_toggle_verify$"))
+async def action_toggle_verify(client: Client, callback_query: CallbackQuery):
+    settings = await db.get_bot_settings()
+    current_status = settings.get('verify_mode', True)
+    await db.update_bot_setting('verify_mode', not current_status)
+    await callback_query.answer(f"Verification turned {'OFF' if current_status else 'ON'}")
+    await panel_verify(client, callback_query)
+
+
+@Bot.on_callback_query(filters.regex("^action_set_tut$"))
+async def action_set_tut(client: Client, callback_query: CallbackQuery):
+    await callback_query.message.delete()
+    await client.send_message(
+        chat_id=callback_query.from_user.id,
+        text="<b>SEND ME NEW TUTORIAL VIDEO URL...</b>\n\n<i>/cancel - CANCEL THIS PROCESS.</i>",
+        reply_markup=ForceReply(selective=True)
+    )
+    try:
+        res = await client.listen(chat_id=callback_query.from_user.id, timeout=300)
+        if res.text and not res.text.startswith('/cancel'):
+            await db.update_bot_setting('tut_vid', res.text.strip())
+            await res.reply("✅ **TUTORIAL LINK UPDATED SUCCESSFULLY!**")
+    except Exception:
+        pass
+
+
+@Bot.on_callback_query(filters.regex("^action_set_verify_time$"))
+async def action_set_verify_time(client: Client, callback_query: CallbackQuery):
+    await callback_query.message.delete()
+    await client.send_message(
+        chat_id=callback_query.from_user.id,
+        text="<b>SEND ME TOKEN EXPIRE TIME IN SECONDS...</b>\n\n<i>Example: 3600 (1 Hour), 86400 (24 Hours)</i>",
+        reply_markup=ForceReply(selective=True)
+    )
+    try:
+        res = await client.listen(chat_id=callback_query.from_user.id, timeout=300)
+        if res.text and res.text.isdigit():
+            await db.update_bot_setting('verify_expire', int(res.text.strip()))
+            await res.reply("✅ **VERIFICATION TIME UPDATED!**")
+    except Exception:
+        pass
+
+
+# ==============================================================================
+# 🔄 NAVIGATION & CLOSE
+# ==============================================================================
+@Bot.on_callback_query(filters.regex("^panel_main$"))
+async def panel_main(client: Client, callback_query: CallbackQuery):
+    await send_main_settings_panel(callback_query)
+
+@Bot.on_callback_query(filters.regex("^close_panel$"))
+async def close_panel(client: Client, callback_query: CallbackQuery):
     await callback_query.message.delete()
 
-
-# ==============================================================================
-# ✏️ DIRECT COMMANDS FOR SETTINGS UPDATE
-# ==============================================================================
-
-# 1. Shortlink URL और API Key बदलने की कमांड
-@Bot.on_message(filters.command('set_shortlink') & filters.private & admin)
-async def set_shortlink_cmd(client: Client, message: Message):
-    if len(message.command) < 3:
-        return await message.reply_text("<b>उपयोग का तरीका:</b>\n`/set_shortlink <domain_url> <api_key>`\n\n<b>उदाहरण:</b>\n`/set_shortlink shareus.io 12345678`")
-    
-    url = message.command[1].strip()
-    api = message.command[2].strip()
-
-    await db.update_bot_setting('shortlink_url', url)
-    await db.update_bot_setting('shortlink_api', api)
-
-    await message.reply_text(f"✅ <b>Shortlink सफलतापूर्वक अपडेट हो गया!</b>\n\n<b>URL:</b> <code>{url}</code>\n<b>API:</b> <code>{api}</code>")
-
-# 2. Tutorial Video Link बदलने की कमांड
-@Bot.on_message(filters.command('set_tutorial') & filters.private & admin)
-async def set_tutorial_cmd(client: Client, message: Message):
-    if len(message.command) < 2:
-        return await message.reply_text("<b>उपयोग का तरीका:</b>\n`/set_tutorial <video_url>`")
-    
-    tut_url = message.command[1].strip()
-    await db.update_bot_setting('tut_vid', tut_url)
-
-    await message.reply_text(f"✅ <b>Tutorial Link अपडेट हो गया!</b>\n\n<b>New URL:</b> {tut_url}")
-
-# 3. Token Expire Time बदलने की कमांड (घंटों में)
-@Bot.on_message(filters.command('set_expire') & filters.private & admin)
-async def set_expire_cmd(client: Client, message: Message):
-    if len(message.command) < 2 or not message.command[1].isdigit():
-        return await message.reply_text("<b>उपयोग का तरीका:</b>\n`/set_expire <घंटे>`\n\n<b>उदाहरण:</b>\n`/set_expire 12` (12 घंटे के लिए)")
-    
-    hours = int(message.command[1])
-    expire_seconds = hours * 3600
-    
-    await db.update_bot_setting('verify_expire', expire_seconds)
-
-    await message.reply_text(f"✅ <b>Token Expiry Time अपडेट हो गया!</b>\n\n<b>नया समय:</b> {hours} घंटे ({expire_seconds} सेकंड)")
-
-# 4. Auto-Delete Time बदलने की कमांड (सेकंड में)
-@Bot.on_message(filters.command(['dlt_time', 'set_timer']) & filters.private & admin)
-async def set_del_timer_cmd(client: Client, message: Message):
-    if len(message.command) < 2 or not message.command[1].isdigit():
-        return await message.reply_text("<b>उपयोग का तरीका:</b>\n`/dlt_time <seconds>`\n\n<b>उदाहरण:</b>\n`/dlt_time 600` (10 मिनट)")
-    
-    seconds = int(message.command[1])
-    await db.set_del_timer(seconds)
-    await message.reply_text(f"✅ <b>Auto-Delete Timer अपडेट हो गया!</b>\n\n<b>नया समय:</b> `{seconds}` सेकंड")
-
-# 5. वर्तमान Auto-Delete टाइम चेक करने की कमांड
-@Bot.on_message(filters.command('check_dlt_time') & filters.private & admin)
-async def check_del_timer_cmd(client: Client, message: Message):
-    timer = await db.get_del_timer()
-    await message.reply_text(f"⏱️ <b>Current Auto-Delete Timer:</b> `{timer}` सेकंड")
-
-
-# ==============================================================================
-# 👤 USER & BAN MANAGEMENT COMMANDS
-# ==============================================================================
-
-# Ban User
-@Bot.on_message(filters.command('ban') & filters.private & admin)
-async def ban_user_cmd(client: Client, message: Message):
-    if len(message.command) < 2 or not message.command[1].isdigit():
-        return await message.reply_text("<b>उपयोग का तरीका:</b> `/ban <user_id>`")
-    
-    user_id = int(message.command[1])
-    await db.add_ban_user(user_id)
-    await message.reply_text(f"🚫 <b>User <code>{user_id}</code> को बैन कर दिया गया है!</b>")
-
-# Unban User
-@Bot.on_message(filters.command('unban') & filters.private & admin)
-async def unban_user_cmd(client: Client, message: Message):
-    if len(message.command) < 2 or not message.command[1].isdigit():
-        return await message.reply_text("<b>उपयोग का तरीका:</b> `/unban <user_id>`")
-    
-    user_id = int(message.command[1])
-    await db.del_ban_user(user_id)
-    await message.reply_text(f"✅ <b>User <code>{user_id}</code> को अनबैन कर दिया गया है!</b>")
-
-# Ban List
-@Bot.on_message(filters.command('banlist') & filters.private & admin)
-async def banlist_cmd(client: Client, message: Message):
-    banned = await db.get_ban_users()
-    if not banned:
-        return await message.reply_text("✅ कोई भी यूजर बैन नहीं है।")
-    
-    msg = "<b>🚫 Banned Users List:</b>\n\n"
-    for user_id in banned:
-        msg += f"• <code>{user_id}</code>\n"
-    await message.reply_text(msg)
+@Bot.on_callback_query(filters.regex("^(set_premium_info|set_caption_info|set_fsub_info)$"))
+async def placeholder_info(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer("Feature Active", show_alert=True)
