@@ -49,7 +49,7 @@ class Rohit:
         self.rqst_fsub_data = self.database['request_forcesub']
         self.rqst_fsub_Channel_data = self.database['request_forcesub_channel']
         
-        # ✅ MULTI-BATCH COLLECTION ADDED
+        # ✅ MULTI-BATCH COLLECTION
         self.multi_batches = self.database['multi_batches']
 
 
@@ -242,6 +242,34 @@ class Rohit:
         ]
         result = await self.sex_data.aggregate(pipeline).to_list(length=1)
         return result[0]["total"] if result else 0
+
+
+    # ==============================================================================
+    # ✅ MULTI-BATCH MANAGEMENT (Naye Database Handlers)
+    # ==============================================================================
+    async def get_multi_batch(self, batch_id: str):
+        """Batch का डेटा निकालता है"""
+        return await self.multi_batches.find_one({"batch_id": batch_id})
+
+    async def create_multi_batch(self, batch_id: str):
+        """Naya Batch Document बनाता है"""
+        batch = await self.get_multi_batch(batch_id)
+        if not batch:
+            await self.multi_batches.insert_one({"batch_id": batch_id, "ranges": []})
+
+    async def add_range_to_multi_batch(self, batch_id: str, new_range: dict):
+        """Batch में Naya Episode Range जोड़ता है"""
+        await self.multi_batches.update_one(
+            {"batch_id": batch_id},
+            {"$push": {"ranges": new_range}}
+        )
+
+    async def update_multi_batch_ranges(self, batch_id: str, ranges: list):
+        """Range Delete होने पर List Update करता है"""
+        await self.multi_batches.update_one(
+            {"batch_id": batch_id},
+            {"$set": {"ranges": ranges}}
+        )
 
 
 db = Rohit(DB_URI, DB_NAME)
