@@ -60,7 +60,7 @@ def get_db_channel_id(client: Client):
         return None
 
 # ==============================================================================
-# MAIN /start COMMAND HANDLER
+# MAIN /start COMMAND HANDLER (Single Engine for All Files & Batches)
 # ==============================================================================
 @Bot.on_message(filters.command('start') & filters.private)
 async def start_command(client: Client, message: Message):
@@ -81,7 +81,7 @@ async def start_command(client: Client, message: Message):
         except:
             pass
 
-    # ✅ Check Force Subscription First (Subscribers Verification)
+    # ✅ Check Force Subscription First
     if not await is_subscribed(client, user_id):
         return await not_joined(client, message)
 
@@ -96,7 +96,6 @@ async def start_command(client: Client, message: Message):
             )
         )
 
-    # File auto-delete time in seconds
     FILE_AUTO_DELETE = await db.get_del_timer()
     text = message.text
 
@@ -106,11 +105,13 @@ async def start_command(client: Client, message: Message):
         except IndexError:
             return
 
-        # 🔥 NEW: Multi-Batch Deep Link Support Check (`mbatch_`)
+        # 🔥 MULTI-BATCH DEEP LINK: Displays Episode Buttons carrying Standard Base64 Hashes
         if base64_string.startswith("mbatch_"):
             return await handle_multi_batch_start(client, message, base64_string)
 
-        # Token verification status fetch
+        # ----------------------------------------------------------------------
+        # STANDARD BATCH & SINGLE FILE DELIVERY ENGINE (Token & Verification)
+        # ----------------------------------------------------------------------
         verify_status = await db.get_verify_status(id)
 
         if SHORTLINK_URL or SHORTLINK_API:
@@ -155,27 +156,32 @@ async def start_command(client: Client, message: Message):
                     [InlineKeyboardButton("• ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
                 ]
                 return await message.reply(
-                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ 𝘁ᴏ𝗸𝗲𝗻 𝘁ᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
+                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ 𝘁𝗼𝗸𝗲𝗻 𝘁ᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=True
                 )
 
-        # File decoding for Single / Batch Links
-        string = await decode(base64_string)
-        argument = string.split("-")
+        # Decode standard Base64 Batch / Single File Hash
+        try:
+            string = await decode(base64_string)
+            argument = string.split("-")
+        except Exception as e:
+            logger.error(f"Error decoding string {base64_string}: {e}")
+            return await message.reply_text("⚠️ **Invalid Link or File Hash!**")
 
+        db_channel_id = abs(get_db_channel_id(client))
         ids = []
         if len(argument) == 3:
             try:
-                start = int(int(argument[1]) / abs(client.db_channel.id))
-                end = int(int(argument[2]) / abs(client.db_channel.id))
+                start = int(int(argument[1]) / db_channel_id)
+                end = int(int(argument[2]) / db_channel_id)
                 ids = range(start, end + 1) if start <= end else list(range(start, end - 1, -1))
             except Exception as e:
                 return print(f"Error decoding IDs: {e}")
             
         elif len(argument) == 2:
             try:
-                ids = [int(int(argument[1]) / abs(client.db_channel.id))]
+                ids = [int(int(argument[1]) / db_channel_id)]
             except Exception as e:
                 print(f"Error decoding ID: {e}")
                 return
@@ -248,7 +254,7 @@ async def start_command(client: Client, message: Message):
 
         if FILE_AUTO_DELETE > 0:
             notification_msg = await message.reply(
-                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇ Deleted ɪɴ  {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢES ʙᴇғᴏʀᴇ ɪᴛ ɢᴇᴛs DᴇʟᴇᴛᴇDeleted.</b>"
+                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇᴅ ɪɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ʙᴇғᴏʀᴇ ɪᴛ ɢᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b>"
             )
 
             await asyncio.sleep(FILE_AUTO_DELETE)
@@ -271,7 +277,7 @@ async def start_command(client: Client, message: Message):
                 ) if reload_url else None
 
                 await notification_msg.edit(
-                    "<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱ|ꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!\n\nᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ᴅᴇʟᴇᴛᴇᴅ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ 👇</b>",
+                    "<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!\n\nᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ᴅᴇʟᴇᴛᴇᴅ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ 👇</b>",
                     reply_markup=keyboard
                 )
             except Exception as e:
@@ -312,7 +318,7 @@ async def start_command(client: Client, message: Message):
 
 
 # ==============================================================================
-# 🔥 MULTI-BATCH START HANDLER (Shows Episode Buttons)
+# 🔥 MULTI-BATCH START HANDLER (UI Generator ONLY)
 # ==============================================================================
 async def handle_multi_batch_start(client: Client, message: Message, payload: str):
     try:
@@ -325,14 +331,29 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
 
         ranges = batch_data.get("ranges", [])
         buttons = []
-        for index, item in enumerate(ranges):
+        db_channel_id = abs(get_db_channel_id(client))
+
+        for item in ranges:
+            # Check if base64_hash is already pre-saved in MongoDB
+            if "base64_hash" in item and item["base64_hash"]:
+                batch_hash = item["base64_hash"]
+            else:
+                # Dynamically construct standard Codexbotz Base64 hash if range has start_id and end_id
+                start_id = item["start_id"]
+                end_id = item["end_id"]
+                raw_string = f"get-{start_id * db_channel_id}-{end_id * db_channel_id}"
+                batch_hash = await encode(raw_string)
+
+            # Standard Telegram Deep Link for individual Range/Batch
+            batch_url = f"https://t.me/{client.username}?start={batch_hash}"
+
             buttons.append([
-                InlineKeyboardButton(f"📺 {item['title']}", callback_data=f"user_mget_{batch_id}_{index}")
+                InlineKeyboardButton(f"📺 {item['title']}", url=batch_url)
             ])
 
         markup = InlineKeyboardMarkup(buttons)
         await message.reply_text(
-            f"🎬 **Multi-Batch Episodes:** `{batch_id}`\n\nNiche दिए गए बटन पर क्लिक करके एपिसोड प्राप्त करें:",
+            f"🎬 **Multi-Batch Episodes:** `{batch_id.upper()}`\n\n👇 **Niche दिए गए बटन पर क्लिक करके एपिसोड प्राप्त करें:**",
             reply_markup=markup
         )
     except Exception as e:
@@ -341,179 +362,7 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
 
 
 # ==============================================================================
-# 🔥 FULLY LOADED USER EPISODE DELIVERY CALLBACK HANDLER (Pop-ups Removed)
-# ==============================================================================
-@Bot.on_callback_query(filters.regex(r"^user_mget_"), group=-1)
-async def user_mget_callback(client: Client, query: CallbackQuery):
-    data = query.data
-    user_id = query.from_user.id
-    
-    logger.info(f"🟢 [CALLBACK HIT SUCCESS] Data: {data} | User: {user_id}")
-
-    try:
-        # 1. Check Force Subscribe before sending files
-        if not await is_subscribed(client, user_id):
-            await query.answer()
-            return await not_joined(client, query.message)
-
-        parts = data.split("_")
-        if len(parts) < 4:
-            await query.answer()
-            return
-
-        batch_id = parts[2]
-        index = int(parts[3])
-
-        is_premium = await is_premium_user(user_id)
-        verify_status = await db.get_verify_status(user_id)
-
-        # 2. Token Verification Check
-        if SHORTLINK_URL or SHORTLINK_API and not is_premium:
-            if verify_status['is_verified'] and VERIFY_EXPIRE < (time.time() - verify_status['verified_time']):
-                await db.update_verify_status(user_id, is_verified=False)
-                verify_status['is_verified'] = False 
-
-            if not verify_status['is_verified']:
-                token = ''.join(random.choices(rohit.ascii_letters + rohit.digits, k=10))
-                await db.update_verify_status(user_id, verify_token=token, link=f"mbatch_{batch_id}")
-                
-                link = await get_shortlink(SHORTLINK_URL, SHORTLINK_API, f'https://t.me/{client.username}?start=verify_{token}')
-                btn = [
-                    [InlineKeyboardButton("• 𝚅𝙴𝚁𝙸𝙵𝙸𝙴𝙳 •", url=link),
-                     InlineKeyboardButton("• ᴛᴜᴛᴏʀɪᴀʟ •", url=TUT_VID)],
-                    [InlineKeyboardButton("• ʙᴜʏ ᴘʀᴇᴍ𝙸𝚄𝙼 •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
-                ]
-                await query.message.reply(
-                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ 𝘁ᴏ𝗸𝗲𝗻 𝘁ᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
-                    reply_markup=InlineKeyboardMarkup(btn),
-                    protect_content=True
-                )
-                await query.answer()
-                return
-
-        batch_data = await db.get_multi_batch(batch_id)
-
-        if not batch_data or "ranges" not in batch_data or index >= len(batch_data["ranges"]):
-            await query.answer()
-            return
-
-        target_range = batch_data["ranges"][index]
-        db_channel_id = get_db_channel_id(client)
-
-        start_id = target_range["start_id"]
-        end_id = target_range["end_id"]
-        ids = range(start_id, end_id + 1) if start_id <= end_id else list(range(start_id, end_id - 1, -1))
-
-        cancel_tasks[user_id] = False
-
-        # 3. Please Wait Message & Cancel Button Markup
-        wait_markup = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("𝙳𝙴𝚅𝙴𝙻𝙾𝙿𝙴𝚁🛠️", url="https://t.me/HDFILM0900_BOT", style=enums.ButtonStyle.PRIMARY)
-            ],[
-                InlineKeyboardButton("🌀 𝙲𝙰𝙽𝙲𝙴𝙻 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)
-            ]
-        ])
-        
-        temp_msg = await query.message.reply("<b>🔺ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ</b>", reply_markup=wait_markup)
-        await query.answer()
-        logger.info(f"📤 [SENDING EPISODES] To User {user_id} | Range IDs: {start_id} to {end_id}")
-
-        try:
-            messages = await get_messages(client, ids)
-        except Exception as e:
-            await query.message.reply_text("Something went wrong!")
-            logger.error(f"Error getting messages in multi-batch: {e}")
-            try: await temp_msg.delete()
-            except: pass
-            return
-
-        codeflix_msgs = []
-        for msg in messages:
-            await asyncio.sleep(0.05)
-
-            if cancel_tasks.get(user_id, False) is True:
-                break
-
-            if msg.service or (not msg.text and not msg.media):
-                continue  
-
-            await client.send_chat_action(chat_id=user_id, action=ChatAction.UPLOAD_DOCUMENT)
-
-            caption = (CUSTOM_CAPTION.format(previouscaption="" if not msg.caption else msg.caption.html, 
-                                             filename=msg.document.file_name) if bool(CUSTOM_CAPTION) and bool(msg.document)
-                       else ("" if not msg.caption else msg.caption.html))
-
-            reply_markup = msg.reply_markup if DISABLE_CHANNEL_BUTTON else None
-
-            try:
-                copied_msg = await msg.copy(chat_id=user_id, caption=caption, parse_mode=ParseMode.HTML, 
-                                            reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
-                codeflix_msgs.append(copied_msg)
-            except FloodWait as e:
-                await asyncio.sleep(e.x)
-                if cancel_tasks.get(user_id, False) is True: 
-                    break
-                copied_msg = await msg.copy(chat_id=user_id, caption=caption, parse_mode=ParseMode.HTML, 
-                                            reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
-                codeflix_msgs.append(copied_msg)
-            except Exception as e:
-                logger.error(f"Failed to send message: {e}")
-                pass
-
-            await asyncio.sleep(1)
-
-        was_cancelled = cancel_tasks.pop(user_id, False)
-
-        try:
-            await temp_msg.delete()
-        except:
-            pass
-
-        if was_cancelled:
-            await query.message.reply_text("❌ **File delivery has been cancelled successfully.**")
-            return
-
-        # 4. Auto Delete Timer & Reload Button Support
-        FILE_AUTO_DELETE = await db.get_del_timer()
-        if FILE_AUTO_DELETE > 0:
-            notification_msg = await query.message.reply(
-                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇᴅ ɪɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ʙᴇғᴏʀᴇ ɪᴛ ɢᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b>"
-            )
-
-            await asyncio.sleep(FILE_AUTO_DELETE)
-
-            for snt_msg in codeflix_msgs:    
-                if snt_msg:
-                    try:    
-                        await snt_msg.delete()  
-                    except Exception as e:
-                        logger.error(f"Error deleting message {snt_msg.id}: {e}")
-
-            try:
-                reload_url = f"https://t.me/{client.username}?start=mbatch_{batch_id}"
-                keyboard = InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("ɢᴇᴛ ғɪʟᴇ ᴀɢᴀɪɴ!", url=reload_url)]]
-                )
-
-                await notification_msg.edit(
-                    "<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!\n\nᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ᴅᴇʟᴇᴛᴇᴅ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ 👇</b>",
-                    reply_markup=keyboard
-                )
-            except Exception as e:
-                logger.error(f"Error updating notification with 'Get File Again' button: {e}")
-
-    except Exception as e:
-        full_traceback = traceback.format_exc()
-        logger.error(f"💥 [USER DELIVERY ERROR] Data: '{data}' | User: {user_id}\nError: {e}\n{full_traceback}")
-        try:
-            await query.answer()
-        except Exception:
-            pass
-
-
-# ==============================================================================
-# CALLBACK QUEUE FOR CANCEL DELIVERY (Pop-ups Removed)
+# CALLBACK QUEUE FOR CANCEL DELIVERY
 # ==============================================================================
 @Bot.on_callback_query(filters.regex(r"^cancel_delivery_"), group=-1)
 async def cancel_delivery_callback(client: Client, callback_query: CallbackQuery):
