@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import random
 import sys
@@ -6,6 +7,7 @@ import re
 import string 
 import string as rohit
 import time
+import traceback
 from datetime import datetime, timedelta
 from pyrogram import Client, filters, __version__, enums
 from pyrogram.enums import ParseMode, ChatAction, ChatMemberStatus
@@ -18,6 +20,9 @@ from helper_func import *
 from database.database import *
 from database.db_premium import *
 from pytz import timezone
+
+# Logger Setup
+logger = logging.getLogger(__name__)
 
 # ==================== GLOBAL QUOTE=FALSE PATCH ====================
 original_reply = Message.reply
@@ -63,18 +68,42 @@ async def get_chat_and_msg_id(client: Client, message: Message):
                 chat = await client.get_chat(chat_ref)
                 chat_id = chat.id
             return chat_id, msg_id
-        except Exception:
+        except Exception as e:
+            logger.error(f"❌ [LINK PARSE ERROR] {e}\n{traceback.format_exc()}")
             return None, None
     return None, None
 
+# Safe DB Channel ID Fetcher
+def get_db_channel_id(client: Client):
+    if hasattr(client, "db_channel") and client.db_channel:
+        return getattr(client.db_channel, "id", client.db_channel)
+    try:
+        from config import DB_CHANNEL
+        return DB_CHANNEL
+    except Exception:
+        return None
 
+# DB Multi-Batch Helper Wrapper
+async def get_multi_batch_data(batch_id: str):
+    if hasattr(db, "get_multi_batch"):
+        return await db.get_multi_batch(batch_id)
+    elif hasattr(db, "multi_batches"):
+        return await db.multi_batches.find_one({"batch_id": batch_id})
+    return None
+
+
+# ==============================================================================
+# MAIN /START COMMAND HANDLER
+# ==============================================================================
 @Bot.on_message(filters.command('start') & filters.private)
 async def start_command(client: Client, message: Message):
     try:
         await message.react(emoji=random.choice(REACTIONS), big=True)
     except Exception:
-        await message.react(emoji="⚡️", big=True)
-        pass
+        try:
+            await message.react(emoji="⚡️", big=True)
+        except Exception:
+            pass
     
     user_id = message.from_user.id
     id = message.from_user.id
@@ -84,7 +113,7 @@ async def start_command(client: Client, message: Message):
     if not await db.present_user(user_id):
         try:
             await db.add_user(user_id)
-        except:
+        except Exception:
             pass
 
     # ✅ Check Force Subscription
@@ -104,24 +133,22 @@ async def start_command(client: Client, message: Message):
 
     # File auto-delete time in seconds
     FILE_AUTO_DELETE = await db.get_del_timer()
-    text = message.text
 
-    if len(text) > 7:
-        try:
-            base64_string = text.split(" ", 1)[1]
-        except IndexError:
-            return
+    # Deep Link / Command Payload Extract
+    if len(message.command) > 1:
+        base64_string = message.command[1].strip()
 
-        # 🚀 MULTI-BATCH SYSTEM CHECK (Master Episode Link Handling)
+        # 🚀 1. MULTI-BATCH MASTER LINK HANDLING
         if base64_string.startswith("mbatch_"):
             batch_id = base64_string.replace("mbatch_", "").strip().lower()
-            batch_data = await db.multi_batches.find_one({"batch_id": batch_id})
+            batch_data = await get_multi_batch_data(batch_id)
 
             if not batch_data or not batch_data.get("ranges"):
                 return await message.reply("❌ **Invalid link or no episodes available in this batch!**")
 
+            ranges = batch_data.get("ranges", [])
             buttons = []
-            for index, item in enumerate(batch_data["ranges"]):
+            for index, item in enumerate(ranges):
                 buttons.append([
                     InlineKeyboardButton(
                         text=f"🎬 {item['title']}",
@@ -135,18 +162,18 @@ async def start_command(client: Client, message: Message):
                 reply_markup=markup
             )
 
-        # Token verification status fetch karein
+        # 🚀 2. TOKEN VERIFICATION / SHORTLINK HANDLING
         verify_status = await db.get_verify_status(id)
 
         if SHORTLINK_URL or SHORTLINK_API:
-            # 🔥 CRITICAL FIX: Pehle check karo ki kya token expire ho chuka hai
+            # Check if token expired
             if verify_status['is_verified'] and VERIFY_EXPIRE < (time.time() - verify_status['verified_time']):
                 await db.update_verify_status(user_id, is_verified=False)
                 verify_status['is_verified'] = False 
 
-            # 2️⃣ CASE: Jab banda token verify karke wapas aaye
-            if "verify_" in text:
-                _, token = text.split("_", 1)
+            # User came back after verifying token
+            if "verify_" in message.text:
+                _, token = message.text.split("_", 1)
                 if verify_status['verify_token'] != token:
                     return await message.reply("⚠️ 𝖨nv𝖺ʟɪᴅ 𝗍ᴏᴋᴇɴ. 𝖯ʟᴇ𝖺𝗌ᴇ /start 𝖺𝗀αɪɴ.")
 
@@ -169,7 +196,7 @@ async def start_command(client: Client, message: Message):
                     protect_content=True
                 )
 
-            # 3️⃣ CASE: 🔥 STRICT ENFORCEMENT BLOCK 🔥
+            # Strict Verification Enforcement
             if not verify_status['is_verified'] and not is_premium:
                 await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
                 
@@ -188,22 +215,27 @@ async def start_command(client: Client, message: Message):
                     protect_content=True
                 )
 
-        # 4️⃣ CASE: Jab banda verified ho (File send karo)
-        string = await decode(base64_string)
-        argument = string.split("-")
+        # 🚀 3. SINGLE / STANDARD BATCH FILE DELIVERY (Standard Base64 Decode)
+        try:
+            string_data = await decode(base64_string)
+        except Exception:
+            return await message.reply("❌ **Invalid or corrupted link!**")
+
+        argument = string_data.split("-")
+        db_chan_id = get_db_channel_id(client)
 
         ids = []
         if len(argument) == 3:
             try:
-                start = int(int(argument[1]) / abs(client.db_channel.id))
-                end = int(int(argument[2]) / abs(client.db_channel.id))
+                start = int(int(argument[1]) / abs(db_chan_id))
+                end = int(int(argument[2]) / abs(db_chan_id))
                 ids = range(start, end + 1) if start <= end else list(range(start, end - 1, -1))
             except Exception as e:
                 return print(f"Error decoding IDs: {e}")
             
         elif len(argument) == 2:
             try:
-                ids = [int(int(argument[1]) / abs(client.db_channel.id))]
+                ids = [int(int(argument[1]) / abs(db_chan_id))]
             except Exception as e:
                 print(f"Error decoding ID: {e}")
                 return
@@ -217,7 +249,7 @@ async def start_command(client: Client, message: Message):
                 InlineKeyboardButton("🌀 𝙲𝙰𝙽𝙲𝙴𝙻 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)
             ]
         ])
-        temp_msg = await message.reply("<b>🔺ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ</b>", reply_markup=wait_markup)
+        temp_msg = await message.reply("<b>🔺 ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ</b>", reply_markup=wait_markup)
         
         try:
             messages = await get_messages(client, ids)
@@ -274,9 +306,9 @@ async def start_command(client: Client, message: Message):
             await message.reply_text("❌ **File delivery has been cancelled successfully.**")
             return
 
-        if FILE_AUTO_DELETE > 0:
+        if FILE_AUTO_DELETE > 0 and codeflix_msgs:
             notification_msg = await message.reply(
-                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇ Deleted ɪɴ  {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢES ʙᴇғᴏʀᴇ ɪᴛ ɢᴇᴛs DᴇʟᴇᴛᴇDeleted.</b>"
+                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇᴅ ɪɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs.</b>"
             )
 
             await asyncio.sleep(FILE_AUTO_DELETE)
@@ -299,12 +331,13 @@ async def start_command(client: Client, message: Message):
                 ) if reload_url else None
 
                 await notification_msg.edit(
-                    "<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱ|ꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!\n\nᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ᴅᴇʟᴇᴛᴇᴅ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ 👇</b>",
+                    "<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!\n\nᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ᴅᴇʟᴇᴛᴇᴅ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ 👇</b>",
                     reply_markup=keyboard
                 )
             except Exception as e:
-                print(f"Error updating notification with 'Get File Again' button: {e}")
+                print(f"Error updating notification: {e}")
     else:
+        # Standard Welcome Message (When /start is sent without arguments)
         try:
             sticker_msg = await message.reply_sticker(sticker=START_STICKER)
             await asyncio.sleep(0.4)
@@ -317,10 +350,10 @@ async def start_command(client: Client, message: Message):
         
         reply_markup = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟs •", callback_data='channels' , style=enums.ButtonStyle.PRIMARY)],
+                [InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟs •", callback_data='channels', style=enums.ButtonStyle.PRIMARY)],
                 [
-                    InlineKeyboardButton("• ᴀʙᴏᴜᴛ", callback_data = "about"),
-                    InlineKeyboardButton("• ʜᴇʟᴘ •", callback_data = "help")
+                    InlineKeyboardButton("• ᴀʙᴏᴜᴛ", callback_data="about"),
+                    InlineKeyboardButton("• ʜᴇʟᴘ •", callback_data="help")
                 ]
             ]
         )
@@ -338,216 +371,265 @@ async def start_command(client: Client, message: Message):
 
         return
 
+
 # ==============================================================================
 # 🎬 MULTI-BATCH ADMIN SYSTEM & CALLBACK HANDLERS
 # ==============================================================================
 
 async def show_admin_batch_menu(client: Client, user_id: int, batch_id: str, message_to_edit=None):
-    batch_data = await db.multi_batches.find_one({"batch_id": batch_id})
-    ranges = batch_data.get("ranges", []) if batch_data else []
+    try:
+        batch_data = await get_multi_batch_data(batch_id)
+        ranges = batch_data.get("ranges", []) if batch_data else []
 
-    buttons = []
-    for index, item in enumerate(ranges):
-        buttons.append([
-            InlineKeyboardButton(f"📺 {item['title']}", callback_data="ignore"),
-            InlineKeyboardButton("❌ Delete", callback_data=f"del_mrange_{batch_id}_{index}")
-        ])
+        buttons = []
+        for index, item in enumerate(ranges):
+            buttons.append([
+                InlineKeyboardButton(f"📺 {item['title']}", callback_data="ignore"),
+                InlineKeyboardButton("❌ Delete", callback_data=f"del_mrange_{batch_id}_{index}")
+            ])
 
-    buttons.append([InlineKeyboardButton("➕ Add New Episode Range (+)", callback_data=f"add_mrange_{batch_id}")])
-    buttons.append([InlineKeyboardButton("🔗 Get Master Share Link", callback_data=f"get_mlink_{batch_id}")])
+        buttons.append([InlineKeyboardButton("➕ Add New Episode Range (+)", callback_data=f"add_mrange_{batch_id}")])
+        buttons.append([InlineKeyboardButton("🔗 Get Master Share Link", callback_data=f"get_mlink_{batch_id}")])
 
-    markup = InlineKeyboardMarkup(buttons)
-    text = (
-        f"⚙️ <b>Multi-Batch Editor:</b> <code>{batch_id}</code>\n\n"
-        f"Total Episode Buttons: <code>{len(ranges)}</code>\n\n"
-        f"Naya episode range add karne ke liye <b>➕ Add New Episode Range (+)</b> par click karein."
-    )
+        markup = InlineKeyboardMarkup(buttons)
+        text = (
+            f"⚙️ <b>Multi-Batch Editor:</b> <code>{batch_id}</code>\n\n"
+            f"Total Episode Buttons: <code>{len(ranges)}</code>\n\n"
+            f"Naya episode range add karne ke liye <b>➕ Add New Episode Range (+)</b> par click karein."
+        )
 
-    if message_to_edit:
-        await message_to_edit.edit_text(text, reply_markup=markup)
-    else:
-        await client.send_message(user_id, text, reply_markup=markup)
+        if message_to_edit:
+            await message_to_edit.edit_text(text, reply_markup=markup)
+        else:
+            await client.send_message(user_id, text, reply_markup=markup)
+    except Exception as e:
+        logger.error(f"❌ [SHOW ADMIN MENU ERROR] {e}\n{traceback.format_exc()}")
 
 
 @Bot.on_message(filters.command("multi_batch") & filters.private & admin)
 async def multi_batch_cmd(client: Client, message: Message):
-    if len(message.command) < 2:
-        await message.reply_text("❌ <b>Usage:</b> <code>/multi_batch <batch_name></code>\n\nExample: <code>/multi_batch naruto</code>")
-        return
+    try:
+        if len(message.command) < 2:
+            await message.reply_text("❌ <b>Usage:</b> <code>/multi_batch <batch_name></code>\n\nExample: <code>/multi_batch naruto</code>")
+            return
 
-    batch_id = message.command[1].strip().lower()
-    batch_data = await db.multi_batches.find_one({"batch_id": batch_id})
+        batch_id = message.command[1].strip().lower()
 
-    if not batch_data:
-        await db.multi_batches.insert_one({"batch_id": batch_id, "ranges": []})
+        if hasattr(db, "create_multi_batch"):
+            await db.create_multi_batch(batch_id)
+        elif hasattr(db, "multi_batches"):
+            batch_data = await db.multi_batches.find_one({"batch_id": batch_id})
+            if not batch_data:
+                await db.multi_batches.insert_one({"batch_id": batch_id, "ranges": []})
 
-    await show_admin_batch_menu(client, message.from_user.id, batch_id)
+        await show_admin_batch_menu(client, message.from_user.id, batch_id)
+    except Exception as e:
+        logger.error(f"❌ [/multi_batch CMD ERROR] {e}\n{traceback.format_exc()}")
 
 
-@Bot.on_callback_query(filters.regex(r"^(add_mrange_|del_mrange_|get_mlink_|user_mget_)"))
+@Bot.on_callback_query(filters.regex(r"^(add_mrange_|del_mrange_|get_mlink_|user_mget_|ignore)"))
 async def multi_batch_callbacks(client: Client, query: CallbackQuery):
     data = query.data
+    user_id = query.from_user.id
 
-    # --- 1. User Clicks Episode Button ---
-    if data.startswith("user_mget_"):
-        _, _, batch_id, index = data.split("_")
-        index = int(index)
-        batch_data = await db.multi_batches.find_one({"batch_id": batch_id})
-        
-        if not batch_data or index >= len(batch_data.get("ranges", [])):
-            return await query.answer("❌ Episode range unavailable!", show_alert=True)
-
-        target_range = batch_data["ranges"][index]
-        await query.answer(f"Sending {target_range['title']}...", show_alert=False)
-
-        start_id = target_range["start_id"]
-        end_id = target_range["end_id"]
-        user_id = query.from_user.id
-        cancel_tasks[user_id] = False
-
-        wait_markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌀 𝙲𝙰𝙽𝙲𝙴𝙻 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)]
-        ])
-        temp_msg = await client.send_message(user_id, "<b>🔺 ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ... Fetching Episodes</b>", reply_markup=wait_markup)
-
-        codeflix_msgs = []
-        FILE_AUTO_DELETE = await db.get_del_timer()
-
-        for m_id in range(start_id, end_id + 1):
-            await asyncio.sleep(0.05)
-            if cancel_tasks.get(user_id, False) is True:
-                break
-
-            await client.send_chat_action(chat_id=user_id, action=ChatAction.UPLOAD_DOCUMENT)
-            try:
-                copied_msg = await client.copy_message(
-                    chat_id=user_id,
-                    from_chat_id=client.db_channel.id,
-                    message_id=m_id,
-                    protect_content=PROTECT_CONTENT
-                )
-                codeflix_msgs.append(copied_msg)
-            except FloodWait as e:
-                await asyncio.sleep(e.x)
-                copied_msg = await client.copy_message(
-                    chat_id=user_id,
-                    from_chat_id=client.db_channel.id,
-                    message_id=m_id,
-                    protect_content=PROTECT_CONTENT
-                )
-                codeflix_msgs.append(copied_msg)
-            except Exception as e:
-                print(f"Error sending message {m_id}: {e}")
-
-            await asyncio.sleep(0.8)
-
-        was_cancelled = cancel_tasks.pop(user_id, False)
-        try: await temp_msg.delete()
-        except: pass
-
-        if was_cancelled:
-            await client.send_message(user_id, "❌ <b>Delivery cancelled successfully!</b>")
+    try:
+        if data == "ignore":
+            await query.answer("यह सिर्फ़ टाइटल बटन है।", show_alert=False)
             return
 
-        if FILE_AUTO_DELETE > 0 and codeflix_msgs:
-            notification_msg = await client.send_message(
-                user_id,
-                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇᴅ ɪɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ.</b>"
-            )
-            await asyncio.sleep(FILE_AUTO_DELETE)
-            for snt_msg in codeflix_msgs:
-                try: await snt_msg.delete()
-                except: pass
-            try:
-                await notification_msg.edit("<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!</b>")
+        # --- 1. User Clicks Episode Button ---
+        if data.startswith("user_mget_"):
+            _, _, batch_id, index = data.split("_")
+            index = int(index)
+            batch_data = await get_multi_batch_data(batch_id)
+
+            if not batch_data or "ranges" not in batch_data or index >= len(batch_data["ranges"]):
+                await query.answer("❌ Episode range unavailable!", show_alert=True)
+                return
+
+            target_range = batch_data["ranges"][index]
+            await query.answer(f"Sending {target_range['title']}...", show_alert=False)
+
+            start_id = target_range["start_id"]
+            end_id = target_range["end_id"]
+            db_channel_id = get_db_channel_id(client)
+            cancel_tasks[user_id] = False
+
+            wait_markup = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌀 𝙲𝙰𝙽𝙲𝙴𝙻 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)]
+            ])
+            temp_msg = await client.send_message(user_id, "<b>🔺 ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ... Fetching Episodes</b>", reply_markup=wait_markup)
+
+            codeflix_msgs = []
+            FILE_AUTO_DELETE = await db.get_del_timer()
+
+            for m_id in range(start_id, end_id + 1):
+                await asyncio.sleep(0.05)
+                if cancel_tasks.get(user_id, False) is True:
+                    break
+
+                await client.send_chat_action(chat_id=user_id, action=ChatAction.UPLOAD_DOCUMENT)
+                try:
+                    copied_msg = await client.copy_message(
+                        chat_id=user_id,
+                        from_chat_id=db_channel_id,
+                        message_id=m_id,
+                        protect_content=PROTECT_CONTENT
+                    )
+                    codeflix_msgs.append(copied_msg)
+                except FloodWait as e:
+                    await asyncio.sleep(e.x)
+                    copied_msg = await client.copy_message(
+                        chat_id=user_id,
+                        from_chat_id=db_channel_id,
+                        message_id=m_id,
+                        protect_content=PROTECT_CONTENT
+                    )
+                    codeflix_msgs.append(copied_msg)
+                except Exception as e:
+                    logger.error(f"Error sending message {m_id}: {e}")
+
+                await asyncio.sleep(0.8)
+
+            was_cancelled = cancel_tasks.pop(user_id, False)
+            try: await temp_msg.delete()
             except: pass
 
-    # --- 2. Admin Adds Episode Range (+) ---
-    elif data.startswith("add_mrange_"):
-        batch_id = data.replace("add_mrange_", "")
-        chat_id = query.from_user.id
+            if was_cancelled:
+                await client.send_message(user_id, "❌ <b>Delivery cancelled successfully!</b>")
+                return
 
-        try:
-            title_msg = await client.ask(
-                chat_id=chat_id,
-                text="📝 <b>Enter Button Name/Title:</b>\n\n(Example: <code>Ep 1 to 100</code> ya <code>Season 1</code>)",
-                timeout=60
-            )
-        except Exception:
-            return
-        btn_title = title_msg.text.strip()
-
-        try:
-            f_msg = await client.ask(
-                chat_id=chat_id,
-                text=f" Forward First Message for <b>'{btn_title}'</b> from DB Channel OR send link:",
-                timeout=60
-            )
-        except Exception:
-            return
-        f_chat_id, f_msg_id = await get_chat_and_msg_id(client, f_msg)
-
-        try:
-            s_msg = await client.ask(
-                chat_id=chat_id,
-                text=f" Forward Last Message for <b>'{btn_title}'</b> from DB Channel OR send link:",
-                timeout=60
-            )
-        except Exception:
-            return
-        s_chat_id, s_msg_id = await get_chat_and_msg_id(client, s_msg)
-
-        if not f_chat_id or not s_chat_id or f_chat_id != s_chat_id:
-            await query.message.reply("❌ Invalid links/messages or different channels!")
-            return
-
-        status = await query.message.reply("⏳ Storing episodes in DB channel...")
-        copied_start, copied_end = None, None
-
-        if f_chat_id == client.db_channel.id:
-            copied_start, copied_end = f_msg_id, s_msg_id
-        else:
-            for m_id in range(f_msg_id, s_msg_id + 1):
+            if FILE_AUTO_DELETE > 0 and codeflix_msgs:
+                notification_msg = await client.send_message(
+                    user_id,
+                    f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇᴅ ɪɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ.</b>"
+                )
+                await asyncio.sleep(FILE_AUTO_DELETE)
+                for snt_msg in codeflix_msgs:
+                    try: await snt_msg.delete()
+                    except: pass
                 try:
-                    m = await client.get_messages(f_chat_id, m_id)
-                    if m and not m.empty:
-                        cp = await m.copy(client.db_channel.id, disable_notification=True)
-                        if copied_start is None:
-                            copied_start = cp.id
-                        copied_end = cp.id
-                        await asyncio.sleep(0.3)
-                except Exception:
-                    continue
-            await status.delete()
+                    await notification_msg.edit("<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!</b>")
+                except: pass
 
-        new_range = {
-            "title": btn_title,
-            "start_id": copied_start,
-            "end_id": copied_end
-        }
-        await db.multi_batches.update_one({"batch_id": batch_id}, {"$push": {"ranges": new_range}})
-        await show_admin_batch_menu(client, chat_id, batch_id)
+        # --- 2. Admin Adds Episode Range (+) ---
+        elif data.startswith("add_mrange_"):
+            batch_id = data.replace("add_mrange_", "")
+            chat_id = query.from_user.id
 
-    # --- 3. Admin Gets Master Link ---
-    elif data.startswith("get_mlink_"):
-        batch_id = data.replace("get_mlink_", "")
-        link = f"https://t.me/{client.username}?start=mbatch_{batch_id}"
-        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Share Master URL", url=f'https://telegram.me/share/url?url={link}')]])
-        await query.message.reply_text(f"✨ <b>Here is your Permanent Editable Link:</b>\n\n{link}", reply_markup=reply_markup)
+            if not hasattr(client, "ask"):
+                await query.message.reply("❌ **Error:** `pyromod` Client me missing hai! 'import pyromod' bot.py me add karein.")
+                return
 
-    # --- 4. Admin Deletes Range ---
-    elif data.startswith("del_mrange_"):
-        _, _, batch_id, index = data.split("_")
-        index = int(index)
-        batch_data = await db.multi_batches.find_one({"batch_id": batch_id})
-        ranges = batch_data.get("ranges", [])
-        if 0 <= index < len(ranges):
-            ranges.pop(index)
-            await db.multi_batches.update_one({"batch_id": batch_id}, {"$set": {"ranges": ranges}})
-        await show_admin_batch_menu(client, query.from_user.id, batch_id, message_to_edit=query.message)
+            try:
+                title_msg = await client.ask(
+                    chat_id=chat_id,
+                    text="📝 <b>Enter Button Name/Title:</b>\n\n(Example: <code>Ep 1 to 100</code> ya <code>Season 1</code>)",
+                    timeout=60
+                )
+                if not title_msg or not title_msg.text:
+                    await query.message.reply("❌ Invalid title!")
+                    return
+                btn_title = title_msg.text.strip()
+            except Exception as e:
+                await query.message.reply(f"❌ **Timeout/Error:** `{e}`")
+                return
+
+            try:
+                f_msg = await client.ask(
+                    chat_id=chat_id,
+                    text=f" Forward First Message for <b>'{btn_title}'</b> from Channel OR send link:",
+                    timeout=60
+                )
+                if not f_msg:
+                    return
+            except Exception as e:
+                await query.message.reply(f"❌ **Timeout/Error:** `{e}`")
+                return
+            f_chat_id, f_msg_id = await get_chat_and_msg_id(client, f_msg)
+
+            try:
+                s_msg = await client.ask(
+                    chat_id=chat_id,
+                    text=f" Forward Last Message for <b>'{btn_title}'</b> from Channel OR send link:",
+                    timeout=60
+                )
+                if not s_msg:
+                    return
+            except Exception as e:
+                await query.message.reply(f"❌ **Timeout/Error:** `{e}`")
+                return
+            s_chat_id, s_msg_id = await get_chat_and_msg_id(client, s_msg)
+
+            if not f_chat_id or not s_chat_id or f_chat_id != s_chat_id:
+                await query.message.reply("❌ Invalid links/messages or different channels!")
+                return
+
+            db_channel_id = get_db_channel_id(client)
+            status = await query.message.reply("⏳ Storing episodes in DB channel...")
+            copied_start, copied_end = None, None
+
+            if f_chat_id == db_channel_id:
+                copied_start, copied_end = f_msg_id, s_msg_id
+            else:
+                for m_id in range(f_msg_id, s_msg_id + 1):
+                    try:
+                        m = await client.get_messages(f_chat_id, m_id)
+                        if m and not m.empty:
+                            cp = await m.copy(db_channel_id, disable_notification=True)
+                            if copied_start is None:
+                                copied_start = cp.id
+                            copied_end = cp.id
+                            await asyncio.sleep(0.3)
+                    except Exception as e:
+                        logger.error(f"Msg copy error {m_id}: {e}")
+                        continue
+                await status.delete()
+
+            new_range = {
+                "title": btn_title,
+                "start_id": copied_start,
+                "end_id": copied_end
+            }
+
+            if hasattr(db, "add_range_to_multi_batch"):
+                await db.add_range_to_multi_batch(batch_id, new_range)
+            elif hasattr(db, "multi_batches"):
+                await db.multi_batches.update_one({"batch_id": batch_id}, {"$push": {"ranges": new_range}})
+
+            await show_admin_batch_menu(client, chat_id, batch_id)
+
+        # --- 3. Admin Gets Master Link ---
+        elif data.startswith("get_mlink_"):
+            batch_id = data.replace("get_mlink_", "")
+            bot_username = client.me.username if getattr(client, "me", None) else (await client.get_me()).username
+            link = f"https://t.me/{bot_username}?start=mbatch_{batch_id}"
+            reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Share Master URL", url=f'https://telegram.me/share/url?url={link}')]])
+            await query.message.reply_text(f"✨ <b>Here is your Permanent Editable Link:</b>\n\n{link}", reply_markup=reply_markup)
+
+        # --- 4. Admin Deletes Range ---
+        elif data.startswith("del_mrange_"):
+            _, _, batch_id, index = data.split("_")
+            index = int(index)
+            batch_data = await get_multi_batch_data(batch_id)
+            ranges = batch_data.get("ranges", []) if batch_data else []
+            if 0 <= index < len(ranges):
+                ranges.pop(index)
+                if hasattr(db, "update_multi_batch_ranges"):
+                    await db.update_multi_batch_ranges(batch_id, ranges)
+                elif hasattr(db, "multi_batches"):
+                    await db.multi_batches.update_one({"batch_id": batch_id}, {"$set": {"ranges": ranges}})
+            await show_admin_batch_menu(client, user_id, batch_id, message_to_edit=query.message)
+
+    except Exception as e:
+        logger.error(f"💥 [CALLBACK ERROR] Data: '{data}' | User: {user_id}\nError: {e}\n{traceback.format_exc()}")
+        try:
+            await query.answer(f"❌ Error: {str(e)[:50]}", show_alert=True)
+        except Exception:
+            pass
 
 
-# 🔥 FIXED & OVERRIDDEN CALLBACK QUEUE FOR ABSOLUTE SAFETY 🔥
+# 🔥 CANCEL DELIVERY CALLBACK HANDLER
 @Bot.on_callback_query(filters.regex(r"^cancel_delivery_"), group=-1)
 async def cancel_delivery_callback(client: Client, callback_query: CallbackQuery):
     try:
@@ -571,7 +653,7 @@ async def cancel_delivery_callback(client: Client, callback_query: CallbackQuery
     
     try:
         await callback_query.answer("❌ Stopping delivery queue...", show_alert=False)
-    except:
+    except Exception:
         pass
     
     try:
@@ -579,7 +661,9 @@ async def cancel_delivery_callback(client: Client, callback_query: CallbackQuery
     except (MessageDeleteForbidden, Exception):
         pass
 
-#=====================================================================================##
+# =====================================================================================
+# FORCE SUBSCRIPTION CHECKER
+# =====================================================================================
 
 chat_data_cache = {}
 
@@ -628,7 +712,7 @@ async def not_joined(client: Client, message: Message):
 
                 except Exception as e:
                     print(f"Error with chat {chat_id}: {e}")
-                    try: return await temp.edit(f"<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ ᴅᴇᴠᴇʟᴏᴘᴇʀ @rohit_1888</i></b>")
+                    try: return await temp.edit("<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ ᴅᴇᴠᴇʟᴏᴘᴇʀ @rohit_1888</i></b>")
                     except: return
 
         try:
@@ -655,10 +739,12 @@ async def not_joined(client: Client, message: Message):
 
     except Exception as e:
         print(f"Final Error: {e}")
-        try: await temp.edit(f"<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ ᴅᴇᴠᴇʟᴏᴘᴇʀ...</i></b>")
+        try: await temp.edit("<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ ᴅᴇᴠᴇʟᴏᴘᴇʀ...</i></b>")
         except: pass
 
-#=====================================================================================##
+# =====================================================================================
+# PREMIUM & COMMAND HANDLERS
+# =====================================================================================
 
 @Bot.on_message(filters.command('myplan') & filters.private)
 async def check_plan(client: Client, message: Message):
@@ -666,7 +752,6 @@ async def check_plan(client: Client, message: Message):
     status_message = await check_user_plan(user_id)
     await message.reply(status_message)
 
-#=====================================================================================##
 @Bot.on_message(filters.command('addpremium') & filters.private & admin)
 async def add_premium_user_command(client, msg):
     if len(msg.command) != 4:
@@ -715,7 +800,7 @@ async def add_premium_user_command(client, msg):
 @Bot.on_message(filters.command('remove_premium') & filters.private & admin)
 async def pre_remove_user(client: Client, msg: Message):
     if len(msg.command) != 2:
-        await msg.reply_text("useage: /remove_premium user_id ")
+        await msg.reply_text("usage: /remove_premium user_id")
         return
     try:
         user_id = int(msg.command[1])
@@ -745,8 +830,7 @@ async def list_premium_users_command(client, message):
 
             user_info = await client.get_users(user_id)
             username = user_info.username if user_info.username else "No Username"
-            first_name = user_info.first_name
-            mention=user_info.mention
+            mention = user_info.mention
 
             days, hours, minutes, seconds = (
                 remaining_time.days,
@@ -773,16 +857,12 @@ async def list_premium_users_command(client, message):
     else:
         await message.reply_text("\n\n".join(premium_user_list), parse_mode=None)
 
-#=====================================================================================##
-
 @Bot.on_message(filters.command("count") & filters.private & admin)
 async def total_verify_count_cmd(client, message: Message):
     total = await db.get_total_verify_count()
     await message.reply_text(f"Tᴏᴛᴀʟ ᴠᴇʀɪғɪᴇᴅ ᴛᴏᴋᴇɴs ᴛᴏᴅᴀʏ: <b>{total}</b>")
 
-#=====================================================================================##
-
 @Bot.on_message(filters.command('commands') & filters.private & admin)
 async def bcmd(bot: Bot, message: Message):        
-    reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("• ᴄʟᴏsᴇ •", callback_data = "close")]])
-    await message.reply(text=CMD_TXT, reply_markup = reply_markup, quote=True)
+    reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("• ᴄʟᴏsᴇ •", callback_data="close")]])
+    await message.reply(text=CMD_TXT, reply_markup=reply_markup, quote=True)
