@@ -1,25 +1,37 @@
 import asyncio
-import os
-import random
-import sys
-import re
-import string 
-import string as rohit
-import time
 import logging
+import random
+import string
+import time
 import traceback
-from datetime import datetime, timedelta
-from pyrogram import Client, filters, __version__, enums
-from pyrogram.enums import ParseMode, ChatAction
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ReplyKeyboardMarkup, ChatInviteLink, ChatPrivileges
-from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant, MessageNotModified
-from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated, MessageDeleteForbidden
+from datetime import datetime, timedelta, timezone
+
+from pyrogram import Client, enums, filters
+from pyrogram.enums import ChatAction, ParseMode
+from pyrogram.errors import (
+    FloodWait,
+    InputUserDeactivated,
+    MessageDeleteForbidden,
+    MessageNotModified,
+    UserIsBlocked,
+)
+from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant
+from pyrogram.types import (
+    CallbackQuery,
+    ChatInviteLink,
+    ChatPrivileges,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    ReplyKeyboardMarkup,
+)
+from pytz import timezone as pytz_timezone
+
 from bot import Bot
 from config import *
-from helper_func import *
 from database.database import *
 from database.db_premium import *
-from pytz import timezone
+from helper_func import *
 
 logger = logging.getLogger(__name__)
 
@@ -66,20 +78,22 @@ def get_db_channel_id(client: Client):
 async def start_command(client: Client, message: Message):
     try:
         await message.react(emoji=random.choice(REACTIONS), big=True)
-    except Exception:
-        await message.react(emoji="⚡️", big=True)
-        pass
-    
+    except Exception as e:
+        logger.debug(f"Failed to react with custom emoji: {e}")
+        try:
+            await message.react(emoji="⚡️", big=True)
+        except Exception:
+            pass
+
     user_id = message.from_user.id
-    id = message.from_user.id
-    is_premium = await is_premium_user(id)
+    is_premium = await is_premium_user(user_id)
     
     # Add user if not already present
     if not await db.present_user(user_id):
         try:
             await db.add_user(user_id)
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Error adding user {user_id} to database: {e}")
 
     # ✅ Check Force Subscription First (Subscribers Verification)
     if not await is_subscribed(client, user_id):
@@ -106,12 +120,12 @@ async def start_command(client: Client, message: Message):
         except IndexError:
             return
 
-        # 🔥 NEW: Multi-Batch Deep Link Support Check (`mbatch_`)
+        # 🔥 Multi-Batch Deep Link Support Check (`mbatch_`)
         if base64_string.startswith("mbatch_"):
             return await handle_multi_batch_start(client, message, base64_string)
 
         # Token verification status fetch
-        verify_status = await db.get_verify_status(id)
+        verify_status = await db.get_verify_status(user_id)
 
         if SHORTLINK_URL or SHORTLINK_API:
             if verify_status['is_verified'] and VERIFY_EXPIRE < (time.time() - verify_status['verified_time']):
@@ -125,9 +139,9 @@ async def start_command(client: Client, message: Message):
 
                 await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
 
-                await db.update_verify_status(id, is_verified=True, verified_time=time.time())
-                current = await db.get_verify_count(id)
-                await db.set_verify_count(id, current + 1)
+                await db.update_verify_status(user_id, is_verified=True, verified_time=time.time())
+                current = await db.get_verify_count(user_id)
+                await db.set_verify_count(user_id, current + 1)
 
                 file_id = verify_status.get("link", "")
                 if not file_id:
@@ -145,8 +159,8 @@ async def start_command(client: Client, message: Message):
             if not verify_status['is_verified'] and not is_premium:
                 await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
                 
-                token = ''.join(random.choices(rohit.ascii_letters + rohit.digits, k=10))
-                await db.update_verify_status(id, verify_token=token, link=base64_string)
+                token = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+                await db.update_verify_status(user_id, verify_token=token, link=base64_string)
                 
                 link = await get_shortlink(SHORTLINK_URL, SHORTLINK_API, f'https://t.me/{client.username}?start=verify_{token}')
                 btn = [
@@ -155,14 +169,14 @@ async def start_command(client: Client, message: Message):
                     [InlineKeyboardButton("• ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
                 ]
                 return await message.reply(
-                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ 𝘁ᴏ𝗸𝗲𝗻 𝘁ᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
+                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ 𝘁𝗼𝗸𝗲𝗻 𝘁ᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=True
                 )
 
         # File decoding for Single / Batch Links
-        string = await decode(base64_string)
-        argument = string.split("-")
+        decoded_string = await decode(base64_string)
+        argument = decoded_string.split("-")
 
         ids = []
         if len(argument) == 3:
@@ -171,13 +185,14 @@ async def start_command(client: Client, message: Message):
                 end = int(int(argument[2]) / abs(client.db_channel.id))
                 ids = range(start, end + 1) if start <= end else list(range(start, end - 1, -1))
             except Exception as e:
-                return print(f"Error decoding IDs: {e}")
+                logger.error(f"Error decoding IDs: {e}")
+                return
             
         elif len(argument) == 2:
             try:
                 ids = [int(int(argument[1]) / abs(client.db_channel.id))]
             except Exception as e:
-                print(f"Error decoding ID: {e}")
+                logger.error(f"Error decoding ID: {e}")
                 return
 
         cancel_tasks[user_id] = False
@@ -195,9 +210,11 @@ async def start_command(client: Client, message: Message):
             messages = await get_messages(client, ids)
         except Exception as e:
             await message.reply_text("Something went wrong!")
-            print(f"Error getting messages: {e}")
-            try: await temp_msg.delete()
-            except: pass
+            logger.error(f"Error getting messages: {e}")
+            try: 
+                await temp_msg.delete()
+            except Exception: 
+                pass
             return
 
         codeflix_msgs = []
@@ -230,8 +247,7 @@ async def start_command(client: Client, message: Message):
                                             reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
                 codeflix_msgs.append(copied_msg)
             except Exception as e:
-                print(f"Failed to send message: {e}")
-                pass
+                logger.error(f"Failed to send message: {e}")
 
             await asyncio.sleep(1)
 
@@ -239,7 +255,7 @@ async def start_command(client: Client, message: Message):
 
         try:
             await temp_msg.delete()
-        except:
+        except Exception:
             pass
 
         if was_cancelled:
@@ -248,7 +264,7 @@ async def start_command(client: Client, message: Message):
 
         if FILE_AUTO_DELETE > 0:
             notification_msg = await message.reply(
-                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇ Deleted ɪɴ  {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢES ʙᴇғᴏʀᴇ ɪᴛ ɢᴇᴛs DᴇʟᴇᴛᴇDeleted.</b>"
+                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇᴅ ɪɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ʙᴇғᴏʀᴇ ɪᴛ ɢᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b>"
             )
 
             await asyncio.sleep(FILE_AUTO_DELETE)
@@ -258,7 +274,7 @@ async def start_command(client: Client, message: Message):
                     try:    
                         await snt_msg.delete()  
                     except Exception as e:
-                        print(f"Error deleting message {snt_msg.id}: {e}")
+                        logger.error(f"Error deleting message {snt_msg.id}: {e}")
 
             try:
                 reload_url = (
@@ -271,28 +287,27 @@ async def start_command(client: Client, message: Message):
                 ) if reload_url else None
 
                 await notification_msg.edit(
-                    "<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱ|ꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!\n\nᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ᴅᴇʟᴇᴛᴇᴅ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ 👇</b>",
+                    "<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!\n\nᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ᴅᴇʟᴇᴛᴇᴅ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ 👇</b>",
                     reply_markup=keyboard
                 )
             except Exception as e:
-                print(f"Error updating notification with 'Get File Again' button: {e}")
+                logger.error(f"Error updating notification with 'Get File Again' button: {e}")
     else:
         try:
             sticker_msg = await message.reply_sticker(sticker=START_STICKER)
             await asyncio.sleep(0.4)
             await sticker_msg.delete()
         except Exception as e:
-            print(f"Sticker Loading Error: {e}")
-            pass  
+            logger.error(f"Sticker Loading Error: {e}")
         
         await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
         
         reply_markup = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟs •", callback_data='channels' , style=enums.ButtonStyle.PRIMARY)],
+                [InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟs •", callback_data='channels', style=enums.ButtonStyle.PRIMARY)],
                 [
-                    InlineKeyboardButton("• ᴀʙᴏᴜᴛ", callback_data = "about"),
-                    InlineKeyboardButton("• ʜᴇʟᴘ •", callback_data = "help")
+                    InlineKeyboardButton("• ᴀʙᴏᴜᴛ", callback_data="about"),
+                    InlineKeyboardButton("• ʜᴇʟᴘ •", callback_data="help")
                 ]
             ]
         )
@@ -341,7 +356,7 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
 
 
 # ==============================================================================
-# 🔥 FULLY LOADED USER EPISODE DELIVERY CALLBACK HANDLER (Pop-ups Removed)
+# 🔥 FULLY LOADED USER EPISODE DELIVERY CALLBACK HANDLER
 # ==============================================================================
 @Bot.on_callback_query(filters.regex(r"^user_mget_"), group=-1)
 async def user_mget_callback(client: Client, query: CallbackQuery):
@@ -368,13 +383,13 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
         verify_status = await db.get_verify_status(user_id)
 
         # 2. Token Verification Check
-        if SHORTLINK_URL or SHORTLINK_API and not is_premium:
+        if (SHORTLINK_URL or SHORTLINK_API) and not is_premium:
             if verify_status['is_verified'] and VERIFY_EXPIRE < (time.time() - verify_status['verified_time']):
                 await db.update_verify_status(user_id, is_verified=False)
                 verify_status['is_verified'] = False 
 
             if not verify_status['is_verified']:
-                token = ''.join(random.choices(rohit.ascii_letters + rohit.digits, k=10))
+                token = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
                 await db.update_verify_status(user_id, verify_token=token, link=f"mbatch_{batch_id}")
                 
                 link = await get_shortlink(SHORTLINK_URL, SHORTLINK_API, f'https://t.me/{client.username}?start=verify_{token}')
@@ -384,7 +399,7 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
                     [InlineKeyboardButton("• ʙᴜʏ ᴘʀᴇᴍ𝙸𝚄𝙼 •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
                 ]
                 await query.message.reply(
-                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ 𝘁ᴏ𝗸𝗲𝗻 𝘁ᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
+                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ 𝘁𝗼𝗸𝗲𝗻 𝘁𝗼 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=True
                 )
@@ -398,7 +413,6 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
             return
 
         target_range = batch_data["ranges"][index]
-        db_channel_id = get_db_channel_id(client)
 
         start_id = target_range["start_id"]
         end_id = target_range["end_id"]
@@ -409,6 +423,12 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
         # 3. Please Wait Message & Cancel Button Markup
         wait_markup = InlineKeyboardMarkup([
             [
+                InlineKeyboardButton("<Image src="image_agent_tag_9050418363352223847" alt="Python logo illustration for programming" caption="Python Asyncio Engine" />
+
+```python
+                InlineKeyboardButton("<Image alt="Python Async Programming" caption="Python Async Processing" src="image_agent_tag_4277112246023525547"/>
+
+```python
                 InlineKeyboardButton("𝙳𝙴𝚅𝙴𝙻𝙾𝙿𝙴𝚁🛠️", url="https://t.me/HDFILM0900_BOT", style=enums.ButtonStyle.PRIMARY)
             ],[
                 InlineKeyboardButton("🌀 𝙲𝙰𝙽𝙲𝙴𝙻 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)
@@ -424,8 +444,10 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
         except Exception as e:
             await query.message.reply_text("Something went wrong!")
             logger.error(f"Error getting messages in multi-batch: {e}")
-            try: await temp_msg.delete()
-            except: pass
+            try: 
+                await temp_msg.delete()
+            except Exception: 
+                pass
             return
 
         codeflix_msgs = []
@@ -459,7 +481,6 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
                 codeflix_msgs.append(copied_msg)
             except Exception as e:
                 logger.error(f"Failed to send message: {e}")
-                pass
 
             await asyncio.sleep(1)
 
@@ -467,7 +488,7 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
 
         try:
             await temp_msg.delete()
-        except:
+        except Exception:
             pass
 
         if was_cancelled:
@@ -478,7 +499,7 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
         FILE_AUTO_DELETE = await db.get_del_timer()
         if FILE_AUTO_DELETE > 0:
             notification_msg = await query.message.reply(
-                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇᴅ ɪɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ʙᴇғᴏʀᴇ ɪᴛ ɢᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b>"
+                f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇᴅ ɪɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢES ʙᴇғᴏʀᴇ ɪᴛ ɢᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b>"
             )
 
             await asyncio.sleep(FILE_AUTO_DELETE)
@@ -513,32 +534,38 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
 
 
 # ==============================================================================
-# CALLBACK QUEUE FOR CANCEL DELIVERY (Pop-ups Removed)
+# CALLBACK QUEUE FOR CANCEL DELIVERY
 # ==============================================================================
 @Bot.on_callback_query(filters.regex(r"^cancel_delivery_"), group=-1)
 async def cancel_delivery_callback(client: Client, callback_query: CallbackQuery):
     try:
         target_user_id = int(callback_query.data.split("_")[2])
     except (IndexError, ValueError):
-        try: await callback_query.answer()
-        except: pass
+        try: 
+            await callback_query.answer()
+        except Exception: 
+            pass
         return
     
     if callback_query.from_user.id != target_user_id:
-        try: await callback_query.answer()
-        except: pass
+        try: 
+            await callback_query.answer()
+        except Exception: 
+            pass
         return
 
     if cancel_tasks.get(target_user_id, False) is True:
-        try: await callback_query.answer()
-        except: pass
+        try: 
+            await callback_query.answer()
+        except Exception: 
+            pass
         return
 
     cancel_tasks[target_user_id] = True
     
     try:
         await callback_query.answer()
-    except:
+    except Exception:
         pass
     
     try:
@@ -579,7 +606,7 @@ async def not_joined(client: Client, message: Message):
                         invite = await client.create_chat_invite_link(
                             chat_id=chat_id,
                             creates_join_request=True,
-                            expire_date=datetime.utcnow() + timedelta(seconds=FSUB_LINK_EXPIRY) if FSUB_LINK_EXPIRY else None
+                            expire_date=datetime.now(timezone.utc) + timedelta(seconds=FSUB_LINK_EXPIRY) if FSUB_LINK_EXPIRY else None
                         )
                         link = invite.invite_link
                     else:
@@ -588,7 +615,7 @@ async def not_joined(client: Client, message: Message):
                         else:
                             invite = await client.create_chat_invite_link(
                                 chat_id=chat_id,
-                                expire_date=datetime.utcnow() + timedelta(seconds=FSUB_LINK_EXPIRY) if FSUB_LINK_EXPIRY else None)
+                                expire_date=datetime.now(timezone.utc) + timedelta(seconds=FSUB_LINK_EXPIRY) if FSUB_LINK_EXPIRY else None)
                             link = invite.invite_link
 
                     buttons.append([InlineKeyboardButton(text=name, url=link)])
@@ -596,9 +623,11 @@ async def not_joined(client: Client, message: Message):
                     await temp.edit(f"<b>{'! ' * count}</b>")
 
                 except Exception as e:
-                    print(f"Error with chat {chat_id}: {e}")
-                    try: return await temp.edit(f"<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ ᴅᴇᴠᴇʟᴏᴘᴇʀ @rohit_1888</i></b>")
-                    except: return
+                    logger.error(f"Error with chat {chat_id}: {e}")
+                    try: 
+                        return await temp.edit(f"<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ Support</i></b>")
+                    except Exception: 
+                        return
 
         try:
             buttons.append([
@@ -623,9 +652,11 @@ async def not_joined(client: Client, message: Message):
         )
 
     except Exception as e:
-        print(f"Final Error: {e}")
-        try: await temp.edit(f"<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ ᴅᴇᴠᴇʟᴏᴘᴇʀ...</i></b>")
-        except: pass
+        logger.error(f"Final Error in ForceSub: {e}")
+        try: 
+            await temp.edit(f"<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ Dᴇᴠᴇʟᴏᴘᴇʀ...</i></b>")
+        except Exception: 
+            pass
 
 
 # ==============================================================================
@@ -639,7 +670,7 @@ async def check_plan(client: Client, message: Message):
 
 
 @Bot.on_message(filters.command('addpremium') & filters.private & admin)
-async def add_premium_user_command(client, msg):
+async def add_premium_user_command(client: Client, msg: Message):
     if len(msg.command) != 4:
         await msg.reply_text(
             "Usage: /addpremium <user_id> <time_value> <time_unit>\n\n"
@@ -687,19 +718,19 @@ async def add_premium_user_command(client, msg):
 @Bot.on_message(filters.command('remove_premium') & filters.private & admin)
 async def pre_remove_user(client: Client, msg: Message):
     if len(msg.command) != 2:
-        await msg.reply_text("useage: /remove_premium user_id ")
+        await msg.reply_text("Usage: /remove_premium <user_id>")
         return
     try:
         user_id = int(msg.command[1])
         await remove_premium(user_id)
         await msg.reply_text(f"User {user_id} has been removed.")
     except ValueError:
-        await msg.reply_text("user_id must be an integer or not available in database.")
+        await msg.reply_text("User ID must be an integer.")
 
 
 @Bot.on_message(filters.command('premium_users') & filters.private & admin)
-async def list_premium_users_command(client, message):
-    ist = timezone("Asia/Kolkata")
+async def list_premium_users_command(client: Client, message: Message):
+    ist = pytz_timezone("Asia/Kolkata")
     premium_users_cursor = collection.find({})
     premium_user_list = ['Active Premium Users in database:']
     current_time = datetime.now(ist)  
@@ -718,8 +749,7 @@ async def list_premium_users_command(client, message):
 
             user_info = await client.get_users(user_id)
             username = user_info.username if user_info.username else "No Username"
-            first_name = user_info.first_name
-            mention=user_info.mention
+            mention = user_info.mention
 
             days, hours, minutes, seconds = (
                 remaining_time.days,
@@ -748,12 +778,12 @@ async def list_premium_users_command(client, message):
 
 
 @Bot.on_message(filters.command("count") & filters.private & admin)
-async def total_verify_count_cmd(client, message: Message):
+async def total_verify_count_cmd(client: Client, message: Message):
     total = await db.get_total_verify_count()
     await message.reply_text(f"Tᴏᴛᴀʟ ᴠᴇʀɪғɪᴇᴅ ᴛᴏᴋᴇɴs ᴛᴏᴅᴀʏ: <b>{total}</b>")
 
 
 @Bot.on_message(filters.command('commands') & filters.private & admin)
 async def bcmd(bot: Bot, message: Message):        
-    reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("• ᴄʟᴏsᴇ •", callback_data = "close")]])
-    await message.reply(text=CMD_TXT, reply_markup = reply_markup, quote=True)
+    reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("• ᴄʟᴏsᴇ •", callback_data="close")]])
+    await message.reply(text=CMD_TXT, reply_markup=reply_markup, quote=True)
