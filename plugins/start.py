@@ -155,7 +155,7 @@ async def start_command(client: Client, message: Message):
                     [InlineKeyboardButton("• ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
                 ]
                 return await message.reply(
-                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏ𝘂𝗿 𝘁ᴏ𝗸𝗲𝗻 𝘁ᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
+                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ 𝘁ᴏ𝗸𝗲𝗻 𝘁ᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=True
                 )
@@ -341,7 +341,7 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
 
 
 # ==============================================================================
-# 🔥 FULLY LOADED USER EPISODE DELIVERY CALLBACK HANDLER (With Verify, Wait, Cancel & Auto-Delete)
+# 🔥 FULLY LOADED USER EPISODE DELIVERY CALLBACK HANDLER (Pop-ups Removed)
 # ==============================================================================
 @Bot.on_callback_query(filters.regex(r"^user_mget_"), group=-1)
 async def user_mget_callback(client: Client, query: CallbackQuery):
@@ -353,12 +353,12 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
     try:
         # 1. Check Force Subscribe before sending files
         if not await is_subscribed(client, user_id):
-            await query.answer("❌ Please join our update channels first!", show_alert=True)
+            await query.answer()
             return await not_joined(client, query.message)
 
         parts = data.split("_")
         if len(parts) < 4:
-            await query.answer("❌ Invalid Callback Data Structure!", show_alert=True)
+            await query.answer()
             return
 
         batch_id = parts[2]
@@ -388,13 +388,13 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=True
                 )
-                await query.answer("⚠️ Token expired! Please verify first.", show_alert=True)
+                await query.answer()
                 return
 
         batch_data = await db.get_multi_batch(batch_id)
 
         if not batch_data or "ranges" not in batch_data or index >= len(batch_data["ranges"]):
-            await query.answer("❌ Invalid batch or episode range!", show_alert=True)
+            await query.answer()
             return
 
         target_range = batch_data["ranges"][index]
@@ -416,7 +416,7 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
         ])
         
         temp_msg = await query.message.reply("<b>🔺ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ</b>", reply_markup=wait_markup)
-        await query.answer(f"🚀 Sending {target_range['title']}...", show_alert=False)
+        await query.answer()
         logger.info(f"📤 [SENDING EPISODES] To User {user_id} | Range IDs: {start_id} to {end_id}")
 
         try:
@@ -507,37 +507,37 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
         full_traceback = traceback.format_exc()
         logger.error(f"💥 [USER DELIVERY ERROR] Data: '{data}' | User: {user_id}\nError: {e}\n{full_traceback}")
         try:
-            await query.answer(f"❌ Error: {str(e)[:50]}", show_alert=True)
+            await query.answer()
         except Exception:
             pass
 
 
 # ==============================================================================
-# CALLBACK QUEUE FOR CANCEL DELIVERY
+# CALLBACK QUEUE FOR CANCEL DELIVERY (Pop-ups Removed)
 # ==============================================================================
 @Bot.on_callback_query(filters.regex(r"^cancel_delivery_"), group=-1)
 async def cancel_delivery_callback(client: Client, callback_query: CallbackQuery):
     try:
         target_user_id = int(callback_query.data.split("_")[2])
     except (IndexError, ValueError):
-        try: await callback_query.answer("⚠️ Invalid Callback Data!", show_alert=True)
+        try: await callback_query.answer()
         except: pass
         return
     
     if callback_query.from_user.id != target_user_id:
-        try: await callback_query.answer("⚠️ Yeh cancel button aapke liye nahi hai!", show_alert=True)
+        try: await callback_query.answer()
         except: pass
         return
 
     if cancel_tasks.get(target_user_id, False) is True:
-        try: await callback_query.answer("⏳ Processing cancellation, please wait...", show_alert=False)
+        try: await callback_query.answer()
         except: pass
         return
 
     cancel_tasks[target_user_id] = True
     
     try:
-        await callback_query.answer("❌ Stopping delivery queue...", show_alert=False)
+        await callback_query.answer()
     except:
         pass
     
