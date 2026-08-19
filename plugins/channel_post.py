@@ -19,6 +19,12 @@ from bot import Bot
 from config import *
 from helper_func import encode, admin
 
+# ==============================================================================
+# ❌ AUTO LINK GENERATOR DISABLED (OFF)
+# एडमिन द्वारा भेजे गए मैसेज का ऑटो-लिंक जनरेशन फीचर बंद कर दिया गया है।
+# ==============================================================================
+
+"""
 @Bot.on_message(filters.private & admin & ~filters.command(['start', 'commands','users','broadcast','batch', 'custom_batch', 'genlink','stats', 'dlt_time', 'check_dlt_time', 'dbroadcast', 'ban', 'unban', 'banlist', 'addchnl', 'delchnl', 'listchnl', 'fsub_mode', 'pbroadcast', 'add_admin', 'deladmin', 'admins', 'addpremium', 'premium_users', 'remove_premium', 'myplan', 'count', 'delreq', 'multi_batch']))
 async def channel_post(client: Client, message: Message):
     reply_text = await message.reply_text("Please Wait...!", quote = True)
@@ -42,6 +48,7 @@ async def channel_post(client: Client, message: Message):
 
     if not DISABLE_CHANNEL_BUTTON:
         await post_message.edit_reply_markup(reply_markup)
+"""
 
 # Don't Remove Credit @CodeFlix_Bots, @rohit_1888
 # Ask Doubt on telegram @CodeflixSupport
@@ -53,4 +60,3 @@ async def channel_post(client: Client, message: Message):
 # Please see < https://github.com/Codeflix-Bots/FileStore/blob/master/LICENSE >
 #
 # All rights reserved.
-#
