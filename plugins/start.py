@@ -105,8 +105,8 @@ async def start_command(client: Client, message: Message):
         except IndexError:
             return
 
-        # 🔥 MULTI-BATCH DEEP LINK: Displays Episode Buttons carrying Standard Base64 Hashes
-        if base64_string.startswith("mbatch_"):
+        # 🔥 MULTI-BATCH DEEP LINK: Handles both 'mbatch_' and 'batch_' prefixes
+        if base64_string.startswith("mbatch_") or base64_string.startswith("batch_"):
             return await handle_multi_batch_start(client, message, base64_string)
 
         # ----------------------------------------------------------------------
@@ -322,7 +322,8 @@ async def start_command(client: Client, message: Message):
 # ==============================================================================
 async def handle_multi_batch_start(client: Client, message: Message, payload: str):
     try:
-        batch_id = payload.replace("mbatch_", "").strip().lower()
+        # Removes both mbatch_ and batch_ prefixes cleanly
+        batch_id = payload.replace("mbatch_", "").replace("batch_", "").strip().lower()
         batch_data = await db.get_multi_batch(batch_id)
 
         if not batch_data or not batch_data.get("ranges"):
