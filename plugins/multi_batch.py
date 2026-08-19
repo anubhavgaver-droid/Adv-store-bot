@@ -3,12 +3,12 @@ import logging
 import traceback
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from helper_func import admin, encode
+from helper_func import admin
 
 # ✅ Bot Instance Import
 from bot import Bot
 
-# ✅ Database Import (Rohit Class Object)
+# ✅ Database Import
 from database.database import db
 
 # Logger Setup
@@ -81,7 +81,7 @@ async def show_admin_batch_menu(client: Client, user_id: int, batch_id: str, mes
 
 
 # ==============================================================================
-# 1. /multi_batch <batch_name> Command
+# 1. /multi_batch <batch_id> Command (Admin Only)
 # ==============================================================================
 @Bot.on_message(filters.private & admin & filters.command("multi_batch"))
 async def multi_batch_cmd(client: Client, message: Message):
@@ -100,48 +100,14 @@ async def multi_batch_cmd(client: Client, message: Message):
 
 
 # ==============================================================================
-# 2. User Master Link Click Handler (/start mbatch_...)
+# 2. Admin Callback Query Handler (Add, Delete, Get Link)
 # ==============================================================================
-@Bot.on_message(filters.private & filters.command("start") & filters.regex(r"mbatch_"))
-async def start_mbatch_handler(client: Client, message: Message):
-    try:
-        logger.info(f"📥 [START MBATCH RECEIVED] From User: {message.from_user.id}")
-        text_data = message.text.split()
-        if len(text_data) > 1:
-            batch_id = text_data[1].replace("mbatch_", "").strip().lower()
-            batch_data = await db.get_multi_batch(batch_id)
-
-            if not batch_data or not batch_data.get("ranges"):
-                await message.reply_text("❌ **No episodes found in this batch!**")
-                return
-
-            ranges = batch_data.get("ranges", [])
-            buttons = []
-            for index, item in enumerate(ranges):
-                buttons.append([
-                    InlineKeyboardButton(f"📺 {item['title']}", callback_data=f"user_mget_{batch_id}_{index}")
-                ])
-
-            markup = InlineKeyboardMarkup(buttons)
-            await message.reply_text(
-                f"🎬 **Multi-Batch Episodes:** `{batch_id}`\n\nNiche दिए गए बटन पर क्लिक करके एपिसोड प्राप्त करें:",
-                reply_markup=markup
-            )
-    except Exception as e:
-        logger.error(f"❌ [START MBATCH ERROR] {e}\n{traceback.format_exc()}")
-        await message.reply_text(f"❌ **Start Error:** `{e}`")
-
-
-# ==============================================================================
-# 3. Callback Query Handler (हर बटन पर ट्रैकिंग और एरर प्रिंटिंग)
-# ==============================================================================
-@Bot.on_callback_query(filters.regex(r"^(add_mrange_|del_mrange_|get_mlink_|user_mget_|ignore)"), group=-1)
-async def multi_batch_callbacks(client: Client, query: CallbackQuery):
+@Bot.on_callback_query(filters.regex(r"^(add_mrange_|del_mrange_|get_mlink_|ignore)"), group=-1)
+async def multi_batch_admin_callbacks(client: Client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
 
-    # 🛑 1. लॉग में हर बटन प्रेस दिखेगा
-    logger.info(f"🔘 [BUTTON CLICKED] Data: '{data}' | User ID: {user_id}")
+    logger.info(f"🔘 [ADMIN BUTTON CLICKED] Data: '{data}' | User ID: {user_id}")
 
     try:
         if data == "ignore":
@@ -266,42 +232,10 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
                 logger.info(f"🗑️ [RANGE DELETED] Removed '{removed.get('title')}' from Batch {batch_id}")
             await show_admin_batch_menu(client, user_id, batch_id, message_to_edit=query.message)
 
-        # --- User Episode Delivery ---
-        elif data.startswith("user_mget_"):
-            _, _, batch_id, index = data.split("_")
-            index = int(index)
-            batch_data = await db.get_multi_batch(batch_id)
-
-            if not batch_data or "ranges" not in batch_data or index >= len(batch_data["ranges"]):
-                logger.warning(f"⚠️ [USER GET INVALID] Batch: {batch_id}, Index: {index}")
-                await query.answer("❌ Invalid batch or episode range!", show_alert=True)
-                return
-
-            target_range = batch_data["ranges"][index]
-            db_channel_id = get_db_channel_id(client)
-
-            await query.answer(f"Sending {target_range['title']}...", show_alert=False)
-            logger.info(f"📤 [SENDING EPISODES] To User {user_id} | Range: {target_range['start_id']} to {target_range['end_id']}")
-
-            for m_id in range(target_range["start_id"], target_range["end_id"] + 1):
-                try:
-                    await client.copy_message(
-                        chat_id=user_id,
-                        from_chat_id=db_channel_id,
-                        message_id=m_id
-                    )
-                    await asyncio.sleep(0.5)
-                except Exception as e:
-                    logger.error(f"❌ [SEND MSG ERROR] Msg ID {m_id} to User {user_id}: {e}")
-
-    # 🛑 2. पूरे फंक्शन में कोई भी अनपेक्षित (Unhandled) एरर आएगा तो यहाँ प्रिंट होगा
     except Exception as e:
         full_traceback = traceback.format_exc()
-        logger.error(f"💥 [CRITICAL CALLBACK ERROR] Button Data: '{data}' | User: {user_id}\nError: {e}\n{full_traceback}")
-        
-        # यूज़र की स्क्रीन पर अलर्ट दिखाएं
+        logger.error(f"💥 [ADMIN CALLBACK ERROR] Data: '{data}' | User: {user_id}\nError: {e}\n{full_traceback}")
         try:
-            await query.answer(f"❌ Bot Internal Error: {str(e)[:50]}", show_alert=True)
-            await query.message.reply(f"❌ **Unhandled Error Occurred:**\n`{e}`\n\n Check logs for full Traceback.")
+            await query.answer(f"❌ Error: {str(e)[:50]}", show_alert=True)
         except Exception:
             pass
