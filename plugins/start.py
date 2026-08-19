@@ -341,12 +341,14 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
 
 
 # ==============================================================================
-# 🔥 USER EPISODE DELIVERY CALLBACK HANDLER
+# 🔥 FIXED USER EPISODE DELIVERY CALLBACK HANDLER
 # ==============================================================================
-@Bot.on_callback_query(filters.regex(r"^user_mget_"))
+@Bot.on_callback_query(filters.regex(r"^user_mget_"), group=-1)
 async def user_mget_callback(client: Client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
+    
+    logger.info(f"🟢 [CALLBACK HIT SUCCESS] Data: {data} | User: {user_id}")
 
     try:
         # Check Force Subscribe before sending files
@@ -354,8 +356,14 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
             await query.answer("❌ Please join our update channels first!", show_alert=True)
             return await not_joined(client, query.message)
 
-        _, _, batch_id, index = data.split("_")
-        index = int(index)
+        parts = data.split("_")
+        if len(parts) < 4:
+            await query.answer("❌ Invalid Callback Data Structure!", show_alert=True)
+            return
+
+        batch_id = parts[2]
+        index = int(parts[3])
+        
         batch_data = await db.get_multi_batch(batch_id)
 
         if not batch_data or "ranges" not in batch_data or index >= len(batch_data["ranges"]):
@@ -365,7 +373,7 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
         target_range = batch_data["ranges"][index]
         db_channel_id = get_db_channel_id(client)
 
-        await query.answer(f"Sending {target_range['title']}...", show_alert=False)
+        await query.answer(f"🚀 Sending {target_range['title']}...", show_alert=False)
         logger.info(f"📤 [SENDING EPISODES] To User {user_id} | Range: {target_range['start_id']} to {target_range['end_id']}")
 
         for m_id in range(target_range["start_id"], target_range["end_id"] + 1):
@@ -384,7 +392,7 @@ async def user_mget_callback(client: Client, query: CallbackQuery):
         full_traceback = traceback.format_exc()
         logger.error(f"💥 [USER DELIVERY ERROR] Data: '{data}' | User: {user_id}\nError: {e}\n{full_traceback}")
         try:
-            await query.answer(f"❌ Delivery Error: {str(e)[:50]}", show_alert=True)
+            await query.answer(f"❌ Error: {str(e)[:50]}", show_alert=True)
         except Exception:
             pass
 
