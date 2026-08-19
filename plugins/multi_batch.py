@@ -135,7 +135,7 @@ async def start_mbatch_handler(client: Client, message: Message):
 # ==============================================================================
 # 3. Callback Query Handler (हर बटन पर ट्रैकिंग और एरर प्रिंटिंग)
 # ==============================================================================
-@Bot.on_callback_query(filters.regex(r"^(add_mrange_|del_mrange_|get_mlink_|user_mget_|ignore)"))
+@Bot.on_callback_query(filters.regex(r"^(add_mrange_|del_mrange_|get_mlink_|user_mget_|ignore)"), group=-1)
 async def multi_batch_callbacks(client: Client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
