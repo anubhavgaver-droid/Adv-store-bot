@@ -5,6 +5,9 @@ from pyrogram.enums import ChatMemberStatus
 from bot import Bot
 from helper_func import admin, encode
 
+# ✅ Correct Database Import
+from database.database import db
+
 # --- Helper Functions ---
 async def get_chat_and_msg_id(client: Client, message: Message):
     if message.forward_from_chat:
@@ -40,14 +43,12 @@ async def show_admin_batch_menu(client: Client, user_id: int, batch_id: str, mes
     ranges = batch_data.get("ranges", []) if batch_data else []
 
     buttons = []
-    # Purane Saare Ranges Button format mein
     for index, item in enumerate(ranges):
         buttons.append([
             InlineKeyboardButton(f"📺 {item['title']}", callback_data="ignore"),
             InlineKeyboardButton("❌ Delete", callback_data=f"del_mrange_{batch_id}_{index}")
         ])
 
-    # Naya Episode Range Jodne ke liye Plus (+) Button
     buttons.append([InlineKeyboardButton("➕ Add New Episode Range (+)", callback_data=f"add_mrange_{batch_id}")])
     buttons.append([InlineKeyboardButton("🔗 Get Master Share Link", callback_data=f"get_mlink_{batch_id}")])
 
@@ -83,7 +84,7 @@ async def multi_batch_cmd(client: Client, message: Message):
 
 
 # ==============================================================================
-# 2. Callback Query Handler (Add (+), Delete & Get Link Buttons)
+# 2. Callback Query Handler
 # ==============================================================================
 @Bot.on_callback_query(filters.regex(r"^(add_mrange_|del_mrange_|get_mlink_|user_mget_)"))
 async def multi_batch_callbacks(client: Client, query: CallbackQuery):
@@ -94,7 +95,6 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
         batch_id = data.replace("add_mrange_", "")
         chat_id = query.from_user.id
 
-        # Step 1: Button Title
         try:
             title_msg = await client.ask(
                 chat_id=chat_id,
@@ -105,7 +105,6 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
             return
         btn_title = title_msg.text.strip()
 
-        # Step 2: First Message
         try:
             f_msg = await client.ask(
                 chat_id=chat_id,
@@ -116,7 +115,6 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
             return
         f_chat_id, f_msg_id = await get_chat_and_msg_id(client, f_msg)
 
-        # Step 3: Last Message
         try:
             s_msg = await client.ask(
                 chat_id=chat_id,
@@ -131,7 +129,6 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
             await query.message.reply("❌ Invalid links/messages or different channels!")
             return
 
-        # DB Channel mein copy karna (Safe Backup for fetching)
         status = await query.message.reply("⏳ Storing episodes in DB channel...")
         copied_start, copied_end = None, None
 
@@ -151,7 +148,6 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
                     continue
             await status.delete()
 
-        # MongoDB update
         new_range = {
             "title": btn_title,
             "start_id": copied_start,
@@ -178,7 +174,7 @@ async def multi_batch_callbacks(client: Client, query: CallbackQuery):
             await db.multi_batches.update_one({"batch_id": batch_id}, {"$set": {"ranges": ranges}})
         await show_admin_batch_menu(client, query.from_user.id, batch_id, message_to_edit=query.message)
 
-    # --- User Episode Delivery (Jab user button pe click kare) ---
+    # --- User Episode Delivery ---
     elif data.startswith("user_mget_"):
         _, _, batch_id, index = data.split("_")
         index = int(index)
