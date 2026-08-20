@@ -71,12 +71,52 @@ async def send_main_settings_panel(message_or_query):
         [InlineKeyboardButton("🪙 TOKEN VERIFICATION", callback_data="panel_verify")],
         [InlineKeyboardButton("✍️ CUSTOM CAPTION", callback_data="panel_caption")],
         [InlineKeyboardButton("📢 FORCE SUBSCRIBE PANEL", callback_data="panel_fsub")],
-        [InlineKeyboardButton("❌ CLOSE", callback_data="close_panel")]
+        [InlineKeyboardButton("🛡️ PROTECT CONTENT", callback_data="panel_protect")],
+        [
+            InlineKeyboardButton("ᐸ BACK", callback_data="start"),
+            InlineKeyboardButton("❌ CLOSE", callback_data="close_panel")
+        ]
     ])
     if isinstance(message_or_query, CallbackQuery):
         await message_or_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
     else:
         await message_or_query.reply_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+
+
+# ==============================================================================
+# 🛡️ PROTECT CONTENT MANAGEMENT
+# ==============================================================================
+
+@Bot.on_callback_query(filters.regex("^panel_protect$"))
+async def panel_protect(client: Client, callback_query: CallbackQuery):
+    settings = await db.get_bot_settings()
+    is_protect = settings.get('protect_content', False)
+    status_str = "🟢 ENABLED (FORWARDING OFF)" if is_protect else "🔴 DISABLED (FORWARDING ON)"
+
+    caption = (
+        "<b>🛡️ PROTECT CONTENT SETTINGS</b>\n\n"
+        "<i>Enable or disable content protection. When enabled, users cannot forward or save files sent by the bot.</i>\n\n"
+        f"<b>• Current Status:</b> <code>{status_str}</code>"
+    )
+
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"🛡️ PROTECT: {'ON ✅' if is_protect else 'OFF ❌'}", callback_data="action_toggle_protect")],
+        [InlineKeyboardButton("ᐸ BACK", callback_data="panel_main")]
+    ])
+
+    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+
+
+@Bot.on_callback_query(filters.regex("^action_toggle_protect$"))
+async def action_toggle_protect(client: Client, callback_query: CallbackQuery):
+    settings = await db.get_bot_settings()
+    current_status = settings.get('protect_content', False)
+    new_status = not current_status
+
+    await db.update_bot_setting('protect_content', new_status)
+    status_text = "🟢 Protect Content Enabled!" if new_status else "🔴 Protect Content Disabled!"
+    await callback_query.answer(status_text, show_alert=True)
+    await panel_protect(client, callback_query)
 
 
 # ==============================================================================
@@ -554,7 +594,6 @@ async def action_remove_premium(client: Client, callback_query: CallbackQuery):
         await client.send_message(chat_id=user_id, text=f"❌ <b>ERROR:</b> <code>{e}</code>", reply_markup=back_btn)
 
 
-# 📊 PREMIUM USERS LIST HANDLER (TXT FILE WITH CLOSE BUTTON)
 @Bot.on_callback_query(filters.regex("^action_premium_list$"))
 async def action_premium_list(client: Client, callback_query: CallbackQuery):
     await callback_query.answer("SENDING PREMIUM USERS LIST FILE IN SOME SECONDS", show_alert=True)
