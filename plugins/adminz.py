@@ -45,12 +45,22 @@ async def handle_Chatmembers(client: Client, chat_member_updated: ChatMemberUpda
 
 
 # ==============================================================================
-# 🎛️ MAIN ADMIN PANEL
+# 🎛️ MAIN ADMIN PANEL & SETTINGS BUTTON TRIGGER
 # ==============================================================================
 
 @Bot.on_message(filters.command(['settings', 'panel']) & filters.private & admin)
 async def admin_settings_panel(client: Client, message: Message):
     await send_main_settings_panel(message)
+
+
+# ⚙️ start.py के "⚙️ SETTINGS" बटन पर क्लिक करने से यह ट्रिगर होकर मेन्यू खोलेगा
+@Bot.on_callback_query(filters.regex("^cb_settings$"))
+async def cb_settings_handler(client: Client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    if user_id not in ADMINS:
+        return await callback_query.answer("⚠️ दिस इज ओनली फॉर एडमिन! (This is only for Admin)", show_alert=True)
+    
+    await send_main_settings_panel(callback_query)
 
 
 async def send_main_settings_panel(message_or_query):
@@ -456,9 +466,13 @@ async def action_remove_premium(client: Client, callback_query: CallbackQuery):
         await client.send_message(chat_id=user_id, text=f"❌ <b>ERROR:</b> <code>{e}</code>", reply_markup=back_btn)
 
 
+# 📊 PREMIUM USERS LIST HANDLER (TXT FILE WITH CLOSE BUTTON)
 @Bot.on_callback_query(filters.regex("^action_premium_list$"))
 async def action_premium_list(client: Client, callback_query: CallbackQuery):
     await callback_query.answer("SENDING PREMIUM USERS LIST FILE IN SOME SECONDS", show_alert=True)
+    
+    # TXT फ़ाइल के नीचे अब BACK के स्थान पर CLOSE बटन आएगा
+    close_btn = InlineKeyboardMarkup([[InlineKeyboardButton("❌ CLOSE", callback_data="close_panel")]])
     back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_premium")]])
 
     ist = timezone("Asia/Kolkata")
@@ -516,11 +530,12 @@ async def action_premium_list(client: Client, callback_query: CallbackQuery):
         file = io.BytesIO(text_data.encode('utf-8'))
         file.name = "premium_users.txt"
         
+        # ✅ यहाँ document के साथ 'close_btn' भेजा जा रहा है
         await client.send_document(
             chat_id=callback_query.from_user.id,
             document=file,
             caption=f"<b>📊 TOTAL ACTIVE PREMIUM USERS:</b> <code>{count}</code>",
-            reply_markup=back_btn
+            reply_markup=close_btn
         )
 
     except Exception as e:
