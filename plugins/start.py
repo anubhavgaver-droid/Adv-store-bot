@@ -101,6 +101,10 @@ async def start_command(client: Client, message: Message):
     FILE_AUTO_DELETE = await db.get_del_timer()
     text = message.text
 
+    # Dynamic Bot Settings Fetching
+    bot_settings = await db.get_bot_settings()
+    protect_content_val = bot_settings.get('protect_content', PROTECT_CONTENT)
+
     if len(text) > 7:
         try:
             base64_string = text.split(" ", 1)[1]
@@ -116,8 +120,6 @@ async def start_command(client: Client, message: Message):
         # ----------------------------------------------------------------------
         verify_status = await db.get_verify_status(id)
 
-        # Dynamic Settings Fetching from Database
-        bot_settings = await db.get_bot_settings()
         verify_mode = bot_settings.get('verify_mode', True)
         shortlink_url = bot_settings.get('shortlink_url', SHORTLINK_URL)
         shortlink_api = bot_settings.get('shortlink_api', SHORTLINK_API)
@@ -149,7 +151,7 @@ async def start_command(client: Client, message: Message):
                     f"✅ <b>𝗧𝗼𝗸𝗲𝗻 𝘃𝗲𝗿𝗶𝗳𝗶𝗲𝗱!</b>\n\nVαʟɪᴅ ғᴏʀ: {get_exp_time(verify_expire)}\n\n"
                     "Cʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ғɪʟᴇ 👇",
                     reply_markup=InlineKeyboardMarkup(btn),
-                    protect_content=True
+                    protect_content=protect_content_val
                 )
 
             if not verify_status['is_verified'] and not is_premium:
@@ -166,7 +168,7 @@ async def start_command(client: Client, message: Message):
                 return await message.reply(
                     f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏ𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝘁𝗼 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(verify_expire)}",
                     reply_markup=InlineKeyboardMarkup(btn),
-                    protect_content=True
+                    protect_content=protect_content_val
                 )
 
         # Standard Base64 Batch / Single File Hash Processing
@@ -229,15 +231,25 @@ async def start_command(client: Client, message: Message):
             reply_markup = msg.reply_markup if DISABLE_CHANNEL_BUTTON else None
 
             try:
-                copied_msg = await msg.copy(chat_id=message.from_user.id, caption=caption, parse_mode=ParseMode.HTML, 
-                                            reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
+                copied_msg = await msg.copy(
+                    chat_id=message.from_user.id, 
+                    caption=caption, 
+                    parse_mode=ParseMode.HTML, 
+                    reply_markup=reply_markup, 
+                    protect_content=protect_content_val
+                )
                 codeflix_msgs.append(copied_msg)
             except FloodWait as e:
                 await asyncio.sleep(e.x)
                 if cancel_tasks.get(user_id, False) is True: 
                     break
-                copied_msg = await msg.copy(chat_id=message.from_user.id, caption=caption, parse_mode=ParseMode.HTML, 
-                                            reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
+                copied_msg = await msg.copy(
+                    chat_id=message.from_user.id, 
+                    caption=caption, 
+                    parse_mode=ParseMode.HTML, 
+                    reply_markup=reply_markup, 
+                    protect_content=protect_content_val
+                )
                 codeflix_msgs.append(copied_msg)
             except Exception as e:
                 pass
@@ -294,7 +306,6 @@ async def start_command(client: Client, message: Message):
             pass  
         
         # 🟢 DYNAMIC START MESSAGE, START PIC & SPOILER (BLUR) FROM DB
-        bot_settings = await db.get_bot_settings()
         dyn_start_msg = bot_settings.get('start_msg', START_MSG)
         dyn_start_pic = bot_settings.get('start_pic', START_PIC)
         is_spoiler = bot_settings.get('start_pic_spoiler', False)
@@ -329,7 +340,6 @@ async def start_command(client: Client, message: Message):
                 effect_id=int(random.choice(EFFECT_IDS))
             )
         except Exception:
-            # Fallback without spoiler if Pyrogram version/server throws an error
             await message.reply_photo(
                 photo=dyn_start_pic,
                 caption=formatted_caption,
