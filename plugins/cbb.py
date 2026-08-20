@@ -2,22 +2,68 @@
 # Copyright (C) 2025 by Codeflix-Bots@Github, < https://github.com/Codeflix-Bots >.
 #
 
-from pyrogram import Client 
+import logging
+from pyrogram import Client, enums
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from pyrogram.errors import MessageNotModified, FloodWait
 from bot import Bot
 from config import *
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from database.database import *
-from pyrogram import enums
 from plugins.adminz import send_main_settings_panel
 
+logger = logging.getLogger(__name__)
+
+# ==================== SAFE MESSAGE EDIT HELPER ====================
+async def safe_edit_text(message: Message, text: str, reply_markup=None, disable_web_page_preview=True):
+    """
+    Safely edits text whether the original message was a Photo or Text message.
+    Prevents Telegram API errors when switching media types.
+    """
+    try:
+        if message.photo or message.video or message.document:
+            await message.edit_caption(
+                caption=text,
+                reply_markup=reply_markup
+            )
+        else:
+            await message.edit_text(
+                text=text,
+                disable_web_page_preview=disable_web_page_preview,
+                reply_markup=reply_markup
+            )
+    except MessageNotModified:
+        pass
+    except Exception:
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        await message.reply_text(
+            text=text,
+            disable_web_page_preview=disable_web_page_preview,
+            reply_markup=reply_markup
+        )
+
+
+# ==================== MAIN CALLBACK HANDLER ====================
 @Bot.on_callback_query()
 async def cb_handler(client: Bot, query: CallbackQuery):
     data = query.data
 
     if data == "help":
-        await query.message.edit_text(
-            text=HELP_TXT.format(first=query.from_user.first_name),
-            disable_web_page_preview=True,
+        try:
+            text = HELP_TXT.format(
+                first=query.from_user.first_name,
+                last=query.from_user.last_name or "",
+                mention=query.from_user.mention,
+                id=query.from_user.id
+            )
+        except Exception:
+            text = HELP_TXT
+
+        await safe_edit_text(
+            message=query.message,
+            text=text,
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='start'),
                  InlineKeyboardButton("ᴄʟᴏꜱᴇ", callback_data='close')]
@@ -25,9 +71,19 @@ async def cb_handler(client: Bot, query: CallbackQuery):
         )
 
     elif data == "about":
-        await query.message.edit_text(
-            text=ABOUT_TXT.format(first=query.from_user.first_name),
-            disable_web_page_preview=True,
+        try:
+            text = ABOUT_TXT.format(
+                first=query.from_user.first_name,
+                last=query.from_user.last_name or "",
+                mention=query.from_user.mention,
+                id=query.from_user.id
+            )
+        except Exception:
+            text = ABOUT_TXT
+
+        await safe_edit_text(
+            message=query.message,
+            text=text,
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='start'),
                  InlineKeyboardButton('ᴄʟᴏꜱᴇ', callback_data='close')]
@@ -37,14 +93,18 @@ async def cb_handler(client: Bot, query: CallbackQuery):
     # 🟢 DYNAMIC START MESSAGE FROM DATABASE
     elif data == "start":
         bot_settings = await db.get_bot_settings()
-        dyn_start_msg = bot_settings.get('start_msg', START_MSG)
+        dyn_start_msg = bot_settings.get('start_msg') or START_MSG
 
-        caption = dyn_start_msg.format(
-            first=query.from_user.first_name,
-            last=query.from_user.last_name or "",
-            mention=query.from_user.mention,
-            id=query.from_user.id
-        )
+        try:
+            caption = dyn_start_msg.format(
+                first=query.from_user.first_name,
+                last=query.from_user.last_name or "",
+                username=f"@{query.from_user.username}" if query.from_user.username else "",
+                mention=query.from_user.mention,
+                id=query.from_user.id
+            )
+        except Exception:
+            caption = dyn_start_msg
 
         buttons = InlineKeyboardMarkup([
             [
@@ -59,17 +119,11 @@ async def cb_handler(client: Bot, query: CallbackQuery):
             ]
         ])
 
-        try:
-            await query.message.edit_caption(
-                caption=caption,
-                reply_markup=buttons
-            )
-        except Exception:
-            await query.message.edit_text(
-                text=caption,
-                disable_web_page_preview=True,
-                reply_markup=buttons
-            )
+        await safe_edit_text(
+            message=query.message,
+            text=caption,
+            reply_markup=buttons
+        )
 
     # ⚙️ SETTINGS BUTTON HANDLER (ONLY FOR ADMIN)
     elif data == "cb_settings":
@@ -79,9 +133,19 @@ async def cb_handler(client: Bot, query: CallbackQuery):
         await send_main_settings_panel(query)
 
     elif data == "channels":
-        await query.message.edit_text(
-            text=CHANNELS_TXT.format(first=query.from_user.first_name),
-            disable_web_page_preview=True,
+        try:
+            text = CHANNELS_TXT.format(
+                first=query.from_user.first_name,
+                last=query.from_user.last_name or "",
+                mention=query.from_user.mention,
+                id=query.from_user.id
+            )
+        except Exception:
+            text = CHANNELS_TXT
+
+        await safe_edit_text(
+            message=query.message,
+            text=text,
             reply_markup=InlineKeyboardMarkup([
                 [
                     InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟꜱ •", url="https://t.me/freestoryhubMR", style=enums.ButtonStyle.PRIMARY)
@@ -98,7 +162,10 @@ async def cb_handler(client: Bot, query: CallbackQuery):
 
     # 💎 DYNAMIC PREMIUM PLAN DISPLAY (FIXED DYNAMIC DB FETCHING)
     elif data == "premium":
-        await query.message.delete()
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
         
         # 1. डेटाबेस से लाइव सेटिंग्स निकालें
         settings = await db.get_bot_settings()
@@ -126,23 +193,43 @@ async def cb_handler(client: Bot, query: CallbackQuery):
             f"‼️ Must Send Screenshot after payment."
         )
 
-        await client.send_photo(
-            chat_id=query.message.chat.id,
-            photo=qr_pic,
-            caption=caption,
-            reply_markup=InlineKeyboardMarkup(
-                [
-                    [InlineKeyboardButton("ADMIN 24/7", url=SCREENSHOT_URL)],
-                    [InlineKeyboardButton("🔒 Close", callback_data="close")]
-                ]
+        reply_markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("ADMIN 24/7", url=SCREENSHOT_URL)],
+            [InlineKeyboardButton("🔒 Close", callback_data="close")]
+        ])
+
+        if qr_pic:
+            try:
+                await client.send_photo(
+                    chat_id=query.message.chat.id,
+                    photo=qr_pic,
+                    caption=caption,
+                    reply_markup=reply_markup
+                )
+            except Exception:
+                await client.send_message(
+                    chat_id=query.message.chat.id,
+                    text=caption,
+                    reply_markup=reply_markup,
+                    disable_web_page_preview=True
+                )
+        else:
+            await client.send_message(
+                chat_id=query.message.chat.id,
+                text=caption,
+                reply_markup=reply_markup,
+                disable_web_page_preview=True
             )
-        )
 
     elif data == "close":
-        await query.message.delete()
         try:
-            await query.message.reply_to_message.delete()
-        except:
+            await query.message.delete()
+        except Exception:
+            pass
+        try:
+            if query.message.reply_to_message:
+                await query.message.reply_to_message.delete()
+        except Exception:
             pass
 
     elif data.startswith("rfs_ch_"):
@@ -156,11 +243,13 @@ async def cb_handler(client: Bot, query: CallbackQuery):
                 [InlineKeyboardButton(f"ʀᴇǫ ᴍᴏᴅᴇ {'OFF' if mode == 'on' else 'ON'}", callback_data=f"rfs_toggle_{cid}_{new_mode}")],
                 [InlineKeyboardButton("‹ ʙᴀᴄᴋ", callback_data="fsub_back")]
             ]
-            await query.message.edit_text(
-                f"Channel: {chat.title}\nCurrent Force-Sub Mode: {status}",
+            await safe_edit_text(
+                message=query.message,
+                text=f"Channel: {chat.title}\nCurrent Force-Sub Mode: {status}",
                 reply_markup=InlineKeyboardMarkup(buttons)
             )
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error fetching channel info: {e}")
             await query.answer("Failed to fetch channel info", show_alert=True)
 
     elif data.startswith("rfs_toggle_"):
@@ -171,17 +260,21 @@ async def cb_handler(client: Bot, query: CallbackQuery):
         await db.set_channel_mode(cid, mode)
         await query.answer(f"Force-Sub set to {'ON' if mode == 'on' else 'OFF'}")
 
-        chat = await client.get_chat(cid)
-        status = "🟢 ON" if mode == "on" else "🔴 OFF"
-        new_mode = "off" if mode == "on" else "on"
-        buttons = [
-            [InlineKeyboardButton(f"ʀᴇǫ ᴍᴏᴅᴇ {'OFF' if mode == 'on' else 'ON'}", callback_data=f"rfs_toggle_{cid}_{new_mode}")],
-            [InlineKeyboardButton("‹ ʙᴀᴄᴋ", callback_data="fsub_back")]
-        ]
-        await query.message.edit_text(
-            f"Channel: {chat.title}\nCurrent Force-Sub Mode: {status}",
-            reply_markup=InlineKeyboardMarkup(buttons)
-        )
+        try:
+            chat = await client.get_chat(cid)
+            status = "🟢 ON" if mode == "on" else "🔴 OFF"
+            new_mode = "off" if mode == "on" else "on"
+            buttons = [
+                [InlineKeyboardButton(f"ʀᴇǫ ᴍᴏᴅᴇ {'OFF' if mode == 'on' else 'ON'}", callback_data=f"rfs_toggle_{cid}_{new_mode}")],
+                [InlineKeyboardButton("‹ ʙᴀᴄᴋ", callback_data="fsub_back")]
+            ]
+            await safe_edit_text(
+                message=query.message,
+                text=f"Channel: {chat.title}\nCurrent Force-Sub Mode: {status}",
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
+        except Exception as e:
+            logger.error(f"Error toggling force-sub: {e}")
 
     elif data == "fsub_back":
         channels = await db.show_channels()
@@ -192,10 +285,11 @@ async def cb_handler(client: Bot, query: CallbackQuery):
                 mode = await db.get_channel_mode(cid)
                 status = "🟢" if mode == "on" else "🔴"
                 buttons.append([InlineKeyboardButton(f"{status} {chat.title}", callback_data=f"rfs_ch_{cid}")])
-            except:
+            except Exception:
                 continue
 
-        await query.message.edit_text(
-            "sᴇʟᴇᴄᴛ ᴀ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴛᴏɢɢʟᴇ ɪᴛs ғᴏʀᴄᴇ-sᴜʙ ᴍᴏᴅᴇ:",
+        await safe_edit_text(
+            message=query.message,
+            text="sᴇʟᴇᴄᴛ ᴀ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴛᴏɢɢʟᴇ ɪᴛs ғᴏʀᴄᴇ-sᴜʙ ᴍᴏᴅᴇ:",
             reply_markup=InlineKeyboardMarkup(buttons)
         )
