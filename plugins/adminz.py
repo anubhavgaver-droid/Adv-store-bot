@@ -57,7 +57,7 @@ async def admin_settings_panel(client: Client, message: Message):
 @Bot.on_callback_query(filters.regex("^cb_settings$"))
 async def cb_settings_handler(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
-    if user_id not in ADMINS:
+    if user_id not in OWNER_ID:
         return await callback_query.answer("⚠️ दिस इज ओनली फॉर एडमिन! (This is only for Admin)", show_alert=True)
     
     await send_main_settings_panel(callback_query)
