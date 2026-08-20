@@ -34,26 +34,42 @@ async def cb_handler(client: Bot, query: CallbackQuery):
             ])
         )
 
+    # 🟢 DYNAMIC START MESSAGE FROM DATABASE
     elif data == "start":
-        await query.message.edit_text(
-            text=START_MSG.format(first=query.from_user.first_name,
-                last=query.from_user.last_name or "",
-                mention=query.from_user.mention,
-                id=query.from_user.id),
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟꜱ •", callback_data='channels', style=enums.ButtonStyle.PRIMARY)
-                ],
-                [
-                    InlineKeyboardButton("• ᴀʙᴏᴜᴛ •", callback_data='about'),
-                    InlineKeyboardButton("• ʜᴇʟᴘ •", callback_data='help')
-                ],
-                [
-                    InlineKeyboardButton("⚙️ SETTINGS", callback_data='cb_settings')
-                ]
-            ])
+        bot_settings = await db.get_bot_settings()
+        dyn_start_msg = bot_settings.get('start_msg', START_MSG)
+
+        caption = dyn_start_msg.format(
+            first=query.from_user.first_name,
+            last=query.from_user.last_name or "",
+            mention=query.from_user.mention,
+            id=query.from_user.id
         )
+
+        buttons = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟꜱ •", callback_data='channels', style=enums.ButtonStyle.PRIMARY)
+            ],
+            [
+                InlineKeyboardButton("• ᴀʙᴏᴜᴛ •", callback_data='about'),
+                InlineKeyboardButton("• ʜᴇʟᴘ •", callback_data='help')
+            ],
+            [
+                InlineKeyboardButton("⚙️ SETTINGS", callback_data='cb_settings')
+            ]
+        ])
+
+        try:
+            await query.message.edit_caption(
+                caption=caption,
+                reply_markup=buttons
+            )
+        except Exception:
+            await query.message.edit_text(
+                text=caption,
+                disable_web_page_preview=True,
+                reply_markup=buttons
+            )
 
     # ⚙️ SETTINGS BUTTON HANDLER (ONLY FOR ADMIN)
     elif data == "cb_settings":
