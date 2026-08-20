@@ -1,8 +1,20 @@
-import motor, asyncio
+import motor
+import asyncio
 import motor.motor_asyncio
 import time
 import pymongo, os
-from config import DB_URI, DB_NAME, SHORTLINK_URL, SHORTLINK_API, TUT_VID, VERIFY_EXPIRE
+from config import (
+    DB_URI, 
+    DB_NAME, 
+    SHORTLINK_URL, 
+    SHORTLINK_API, 
+    TUT_VID, 
+    VERIFY_EXPIRE,
+    START_MSG,
+    START_PIC,
+    UPI_ID,
+    QR_PIC
+)
 import logging
 from datetime import datetime, timedelta
 
@@ -278,7 +290,13 @@ class Rohit:
                 'shortlink_api': SHORTLINK_API,
                 'tut_vid': TUT_VID,
                 'verify_expire': VERIFY_EXPIRE,
-                'fsub_mode': 'NORMAL'
+                'fsub_mode': 'NORMAL',
+                'start_msg': START_MSG,
+                'start_pic': START_PIC,
+                'start_pic_spoiler': False,
+                'upi_id': UPI_ID,
+                'qr_pic': QR_PIC,
+                'premium_plan_text': ""
             }
             await self.settings_col.insert_one(default_settings)
             return default_settings
