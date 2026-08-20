@@ -314,9 +314,16 @@ async def start_command(client: Client, message: Message):
         except Exception:
             pass  
         
-        # 🟢 DYNAMIC START MESSAGE, START PIC & SPOILER (BLUR) FROM DB
+        # 🟢 DYNAMIC START MESSAGE FROM DB (WITH FALLBACK TO CONFIG)
         dyn_start_msg = bot_settings.get('start_msg') or START_MSG
-        dyn_start_pic = bot_settings.get('start_pic') or START_PIC
+
+        # 🟢 START PIC LOGIC: केवल DB से फ़ोटो उठाएगा, कोई फॉलबैक नहीं ताकि फोटो हटाने पर केवल टेक्स्ट दिखे
+        dyn_start_pic = bot_settings.get('start_pic', '')
+        if isinstance(dyn_start_pic, str):
+            dyn_start_pic = dyn_start_pic.strip()
+            if dyn_start_pic.lower() in ["none", "off", "no", "false"]:
+                dyn_start_pic = ""
+
         is_spoiler = bot_settings.get('start_pic_spoiler', False)
 
         reply_markup = InlineKeyboardMarkup(
@@ -343,7 +350,7 @@ async def start_command(client: Client, message: Message):
         except Exception:
             formatted_caption = dyn_start_msg
 
-        # If Photo exists, send Photo else fallback to Text
+        # If Photo exists in DB, send Photo else send Text Only
         if dyn_start_pic:
             try:
                 await message.reply_photo(
