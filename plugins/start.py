@@ -20,7 +20,8 @@ from helper_func import *
 from database.database import *
 from database.db_premium import *
 from pytz import timezone
-from adminz import send_main_settings_panel  # एडमिन पैनल फ़ंक्शन इंपोर्ट किया गया है
+from plugins.adminz import send_main_settings_panel
+
 
 logger = logging.getLogger(__name__)
 
