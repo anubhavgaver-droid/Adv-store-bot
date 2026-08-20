@@ -66,6 +66,7 @@ async def cb_settings_handler(client: Client, callback_query: CallbackQuery):
 async def send_main_settings_panel(message_or_query):
     caption = "<b>HERE IS THE SETTINGS MENU</b>\n\n<b>CUSTOMIZE YOUR SETTINGS AS PER YOUR NEED</b>"
     buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🚀 START SETTINGS", callback_data="panel_start_settings")],
         [InlineKeyboardButton("💎 PREMIUM PLAN", callback_data="panel_premium")],
         [InlineKeyboardButton("🪙 TOKEN VERIFICATION", callback_data="panel_verify")],
         [InlineKeyboardButton("✍️ CUSTOM CAPTION", callback_data="panel_caption")],
@@ -76,6 +77,93 @@ async def send_main_settings_panel(message_or_query):
         await message_or_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
     else:
         await message_or_query.reply_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+
+
+# ==============================================================================
+# 🚀 START MESSAGE, PIC & SPOILER (BLUR) MANAGEMENT
+# ==============================================================================
+
+@Bot.on_callback_query(filters.regex("^panel_start_settings$"))
+async def panel_start_settings(client: Client, callback_query: CallbackQuery):
+    settings = await db.get_bot_settings()
+    start_msg = settings.get('start_msg', START_MSG)
+    start_pic = settings.get('start_pic', START_PIC)
+    is_spoiler = settings.get('start_pic_spoiler', False)
+
+    spoiler_status = "🟢 BLUR / SPOILER ON" if is_spoiler else "🔴 BLUR / SPOILER OFF"
+
+    caption = (
+        "<b>🚀 START SETTINGS MANAGEMENT</b>\n\n"
+        f"<b>• Start Pic Link:</b> {start_pic}\n"
+        f"<b>• Blur (Spoiler) Mode:</b> <code>{spoiler_status}</code>\n\n"
+        f"<b>• Current Start Text:</b>\n<code>{start_msg}</code>"
+    )
+
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✏️ SET START MSG", callback_data="action_set_start_msg")],
+        [InlineKeyboardButton("🖼️ SET START PIC", callback_data="action_set_start_pic")],
+        [InlineKeyboardButton(f"👁️ {spoiler_status}", callback_data="action_toggle_spoiler")],
+        [InlineKeyboardButton("ᐸ BACK", callback_data="panel_main")]
+    ])
+
+    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+
+
+@Bot.on_callback_query(filters.regex("^action_toggle_spoiler$"))
+async def action_toggle_spoiler(client: Client, callback_query: CallbackQuery):
+    settings = await db.get_bot_settings()
+    current_status = settings.get('start_pic_spoiler', False)
+    new_status = not current_status
+    
+    await db.update_bot_setting('start_pic_spoiler', new_status)
+    status_text = "🟢 Pic Blur (Spoiler) Turned ON!" if new_status else "🔴 Pic Blur Turned OFF!"
+    await callback_query.answer(status_text, show_alert=True)
+    await panel_start_settings(client, callback_query)
+
+
+@Bot.on_callback_query(filters.regex("^action_set_start_msg$"))
+async def action_set_start_msg(client: Client, callback_query: CallbackQuery):
+    await callback_query.message.delete()
+    user_id = callback_query.from_user.id
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_start_settings")]])
+
+    await client.send_message(
+        chat_id=user_id,
+        text="<b>SEND ME NEW START MESSAGE...</b>\n\n<b>Available tags:</b>\n• <code>{mention}</code>\n• <code>{first}</code>\n• <code>{id}</code>\n\n<i>/cancel - CANCEL THIS PROCESS.</i>",
+        reply_markup=ForceReply(selective=True)
+    )
+    try:
+        res = await client.listen(chat_id=user_id, timeout=300)
+        if not res.text or res.text.startswith('/cancel'):
+            return await client.send_message(chat_id=user_id, text="<b>CANCELLED THIS PROCESS...</b>", reply_markup=back_btn)
+
+        new_text = res.text.html if hasattr(res.text, 'html') else res.text
+        await db.update_bot_setting('start_msg', new_text)
+        await res.reply("✅ <b>START MESSAGE UPDATED SUCCESSFULLY!</b>", reply_markup=back_btn)
+    except Exception:
+        await client.send_message(chat_id=user_id, text="<b>CANCELLED THIS PROCESS...</b>", reply_markup=back_btn)
+
+
+@Bot.on_callback_query(filters.regex("^action_set_start_pic$"))
+async def action_set_start_pic(client: Client, callback_query: CallbackQuery):
+    await callback_query.message.delete()
+    user_id = callback_query.from_user.id
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_start_settings")]])
+
+    await client.send_message(
+        chat_id=user_id,
+        text="<b>SEND ME NEW START PHOTO URL...</b>\n\n<i>Example: https://telegra.ph/file/xxx.jpg</i>\n\n<i>/cancel - CANCEL THIS PROCESS.</i>",
+        reply_markup=ForceReply(selective=True)
+    )
+    try:
+        res = await client.listen(chat_id=user_id, timeout=300)
+        if not res.text or res.text.startswith('/cancel'):
+            return await client.send_message(chat_id=user_id, text="<b>CANCELLED THIS PROCESS...</b>", reply_markup=back_btn)
+
+        await db.update_bot_setting('start_pic', res.text.strip())
+        await res.reply("✅ <b>START PIC UPDATED SUCCESSFULLY!</b>", reply_markup=back_btn)
+    except Exception:
+        await client.send_message(chat_id=user_id, text="<b>CANCELLED THIS PROCESS...</b>", reply_markup=back_btn)
 
 
 # ==============================================================================
@@ -471,7 +559,6 @@ async def action_remove_premium(client: Client, callback_query: CallbackQuery):
 async def action_premium_list(client: Client, callback_query: CallbackQuery):
     await callback_query.answer("SENDING PREMIUM USERS LIST FILE IN SOME SECONDS", show_alert=True)
     
-    # TXT फ़ाइल के नीचे अब BACK के स्थान पर CLOSE बटन आएगा
     close_btn = InlineKeyboardMarkup([[InlineKeyboardButton("❌ CLOSE", callback_data="close_panel")]])
     back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_premium")]])
 
@@ -530,7 +617,6 @@ async def action_premium_list(client: Client, callback_query: CallbackQuery):
         file = io.BytesIO(text_data.encode('utf-8'))
         file.name = "premium_users.txt"
         
-        # ✅ यहाँ document के साथ 'close_btn' भेजा जा रहा है
         await client.send_document(
             chat_id=callback_query.from_user.id,
             document=file,
