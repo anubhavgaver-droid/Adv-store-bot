@@ -20,6 +20,7 @@ from helper_func import *
 from database.database import *
 from database.db_premium import *
 from pytz import timezone
+from adminz import send_main_settings_panel  # एडमिन पैनल फ़ंक्शन इंपोर्ट किया गया है
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +163,7 @@ async def start_command(client: Client, message: Message):
                     [InlineKeyboardButton("• ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
                 ]
                 return await message.reply(
-                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏᴜʀ 𝘁𝗼𝗸𝗲𝗻 𝘁ᴏ 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(verify_expire)}",
+                    f"<b>𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 ʏᴏ𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝘁𝗼 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(verify_expire)}",
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=True
                 )
@@ -291,12 +292,16 @@ async def start_command(client: Client, message: Message):
         except Exception:
             pass  
         
+        # ⚙️ यहाँ वेलकम मैसेज में सेटिंग्स बटन जोड़ दिया गया है
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟs •", callback_data='channels' , style=enums.ButtonStyle.PRIMARY)],
                 [
                     InlineKeyboardButton("• ᴀʙᴏᴜᴛ", callback_data = "about"),
                     InlineKeyboardButton("• ʜᴇʟᴘ •", callback_data = "help")
+                ],
+                [
+                    InlineKeyboardButton("⚙️ SETTINGS", callback_data = "cb_settings")
                 ]
             ]
         )
@@ -312,6 +317,19 @@ async def start_command(client: Client, message: Message):
             reply_markup=reply_markup,
             effect_id=int(random.choice(EFFECT_IDS))) 
         return
+
+
+# ==============================================================================
+# ⚙️ SETTINGS BUTTON CALLBACK HANDLER (ADMIN ONLY)
+# ==============================================================================
+@Bot.on_callback_query(filters.regex("^cb_settings$"))
+async def cb_settings_handler(client: Client, query: CallbackQuery):
+    user_id = query.from_user.id
+    if user_id not in ADMINS:
+        return await query.answer("⚠️ दिस इज ओनली फॉर एडमिन! (This is only for Admin)", show_alert=True)
+    
+    await query.answer()
+    await send_main_settings_panel(query)
 
 
 # ==============================================================================
