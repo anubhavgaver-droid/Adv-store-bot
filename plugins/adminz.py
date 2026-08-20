@@ -65,8 +65,8 @@ async def cb_settings_handler(client: Client, callback_query: CallbackQuery):
 
 async def send_main_settings_panel(message_or_query):
     caption = (
-        "<b>⚙️ Admin Settings Control Panel</b>\n\n"
-        "Select an option below to manage bot settings:"
+        "<blockquote><b>⚙️ Aᴅᴍɪɴ Sᴇᴛᴛɪɴɢs Cᴏɴᴛʀᴏʟ Pᴀɴᴇʟ</b>\n\n"
+        "Sᴇʟᴇᴄᴛ ᴀɴ ᴏᴘᴛɪᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴍᴀɴᴀɢᴇ ʙᴏᴛ sᴇᴛᴛɪɴɢs:</blockquote>"
     )
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("🚀 Sᴛᴀʀᴛ Sᴇᴛᴛɪɴɢs", callback_data="panel_start_settings")],
@@ -76,7 +76,7 @@ async def send_main_settings_panel(message_or_query):
         [InlineKeyboardButton("📢 Fᴏʀᴄᴇ Sᴜʙsᴄʀɪʙᴇ Pᴀɴᴇʟ", callback_data="panel_fsub")],
         [InlineKeyboardButton("🛡️ Pʀᴏᴛᴇᴄᴛ Cᴏɴᴛᴇɴᴛ", callback_data="panel_protect")],
         [
-            InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="start"),
+            InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="start"),
             InlineKeyboardButton("❌ Cʟᴏsᴇ", callback_data="close_panel")
         ]
     ])
@@ -95,16 +95,16 @@ async def panel_protect(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     settings = await db.get_bot_settings()
     is_protect = settings.get('protect_content', False)
-    status_str = "Enabled" if is_protect else "Disabled"
+    status_str = "Eɴᴀʙʟᴇᴅ" if is_protect else "Dɪsᴀʙʟᴇᴅ"
 
     caption = (
-        "<b>🛡️ Protect Content Settings</b>\n\n"
-        f"<b>• Current Status:</b> <code>{status_str}</code>"
+        "<blockquote><b>🛡️ Pʀᴏᴛᴇᴄᴛ Cᴏɴᴛᴇɴᴛ Sᴇᴛᴛɪɴɢs</b>\n\n"
+        f"<b>• Cᴜʀʀᴇɴᴛ Sᴛᴀᴛᴜs:</b> <code>{status_str}</code></blockquote>"
     )
 
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton(f"🛡️ Pʀᴏᴛᴇᴄᴛ: {'✅ ON' if is_protect else '❌ OFF'}", callback_data="action_toggle_protect")],
-        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_main")]
+        [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
 
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
@@ -138,16 +138,16 @@ async def panel_start_settings(client: Client, callback_query: CallbackQuery):
     msg_status = "✅" if start_msg else "❌"
 
     caption = (
-        "<b>🚀 Start Settings</b>\n\n"
-        f"<b>• Start Picture:</b> {pic_status}\n"
-        f"<b>• Custom Start Text:</b> {msg_status}"
+        "<blockquote><b>🚀 Sᴛᴀʀᴛ Sᴇᴛᴛɪɴɢs</b>\n\n"
+        f"<b>• Sᴛᴀʀᴛ Pɪᴄᴛᴜʀᴇ:</b> {pic_status}\n"
+        f"<b>• Cᴜsᴛᴏᴍ Sᴛᴀʀᴛ Tᴇxᴛ:</b> {msg_status}</blockquote>"
     )
 
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("✏️ Sᴇᴛ Sᴛᴀʀᴛ Mᴇssᴀɢᴇ", callback_data="action_set_start_msg"), InlineKeyboardButton("🗑️ Dᴇʟᴇᴛᴇ Mᴇssᴀɢᴇ", callback_data="action_del_start_msg")],
         [InlineKeyboardButton("🖼️ Sᴇᴛ Sᴛᴀʀᴛ Pɪᴄ", callback_data="action_set_start_pic"), InlineKeyboardButton("🗑️ Dᴇʟᴇᴛᴇ Pɪᴄ", callback_data="action_del_start_pic")],
         [InlineKeyboardButton(f"👁️ {spoiler_status}", callback_data="action_toggle_spoiler")],
-        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_main")]
+        [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
 
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
@@ -169,23 +169,23 @@ async def action_set_start_msg(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_start_settings")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_start_settings")]])
 
     await client.send_message(
         chat_id=user_id,
-        text="<b>Please send your new Start Message...</b>\n\n<b>Available Tags:</b>\n• <code>{mention}</code>\n• <code>{first}</code>\n• <code>{id}</code>\n\n<i>/cancel - Cancel process</i>",
+        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ ɴᴇᴡ Sᴛᴀʀᴛ Mᴇssᴀɢᴇ...</b>\n\n<b>Aᴠᴀɪʟᴀʙʟᴇ Tᴀɢs:</b>\n• <code>{mention}</code>\n• <code>{first}</code>\n• <code>{id}</code>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
         res = await client.listen(chat_id=user_id, timeout=300)
         if not res.text or res.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟed</b></blockquote>", reply_markup=back_btn)
 
         new_text = res.text.html if hasattr(res.text, 'html') else res.text
         await db.update_bot_setting('start_msg', new_text)
-        await res.reply("<b>✅ Start Message Updated Successfully!</b>", reply_markup=back_btn)
+        await res.reply("<blockquote>✅ <b>Sᴛᴀʀᴛ Mᴇssᴀɢᴇ Uᴘᴅᴀᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b></blockquote>", reply_markup=back_btn)
     except Exception:
-        await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
 
 @Bot.on_callback_query(filters.regex("^action_del_start_msg$"))
@@ -200,22 +200,22 @@ async def action_set_start_pic(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_start_settings")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_start_settings")]])
 
     await client.send_message(
         chat_id=user_id,
-        text="<b>Please send your new Start Photo URL...</b>\n\n<i>Example: https://telegra.ph/file/xxx.jpg</i>\n\n<i>/cancel - Cancel process</i>",
+        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ ɴᴇᴡ Sᴛᴀʀᴛ Pʜᴏᴛᴏ URL...</b>\n\n<i>E xᴀᴍᴘʟᴇ: https://telegra.ph/file/xxx.jpg</i>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
         res = await client.listen(chat_id=user_id, timeout=300)
         if not res.text or res.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
         await db.update_bot_setting('start_pic', res.text.strip())
-        await res.reply("<b>✅ Start Picture Updated Successfully!</b>", reply_markup=back_btn)
+        await res.reply("<blockquote>✅ <b>Sᴛᴀʀᴛ Pɪᴄᴛᴜʀᴇ Uᴘᴅᴀᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b></blockquote>", reply_markup=back_btn)
     except Exception:
-        await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
 
 @Bot.on_callback_query(filters.regex("^action_del_start_pic$"))
@@ -254,11 +254,11 @@ async def panel_fsub(client: Client, callback_query: CallbackQuery):
     buttons.append([InlineKeyboardButton("➕ Aᴅᴅ Cʜᴀɴɴᴇʟ", callback_data="action_add_fsub")])
     buttons.append([InlineKeyboardButton("🧹 Cʟᴇᴀɴᴜᴘ Rᴇǫᴜᴇsᴛs", callback_data="action_clean_req_menu")])
     buttons.append([InlineKeyboardButton("🗑️ Dᴇʟᴇᴛᴇ Aʟʟ Cʜᴀɴɴᴇʟs", callback_data="action_del_all_fsub")])
-    buttons.append([InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_main")])
+    buttons.append([InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_main")])
 
     caption = (
-        "<b>📢 Force Subscribe Settings</b>\n\n"
-        f"<b>• Total Channels:</b> <code>{len(channels)}</code>"
+        "<blockquote><b>📢 Fᴏʀᴄᴇ Sᴜʙsᴄʀɪʙᴇ Sᴇᴛᴛɪɴɢs</b>\n\n"
+        f"<b>• Tᴏᴛᴀʟ Cʜᴀɴɴᴇʟs:</b> <code>{len(channels)}</code></blockquote>"
     )
 
     await callback_query.message.edit_text(caption, reply_markup=InlineKeyboardMarkup(buttons), disable_web_page_preview=True)
@@ -288,17 +288,17 @@ async def action_add_fsub(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_fsub")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_fsub")]])
 
     await client.send_message(
         chat_id=user_id,
-        text="<b>Send Channel ID or Username...</b>\n\n<i>Example: -1001234567890 or @MyChannel</i>\n\n<i>/cancel - Cancel process</i>",
+        text="<blockquote><b>Sᴇɴᴅ Cʜᴀɴɴᴇʟ ID ᴏʀ U sᴇʀɴᴀᴍᴇ...</b>\n\n<i>E xᴀᴍᴘʟᴇ: -1001234567890 ᴏʀ @MyChannel</i>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
         res = await client.listen(chat_id=user_id, timeout=300)
         if not res.text or res.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
         input_text = res.text.strip()
         ch_id = int(input_text) if input_text.lstrip('-').isdigit() else input_text
@@ -306,11 +306,11 @@ async def action_add_fsub(client: Client, callback_query: CallbackQuery):
         try:
             chat = await client.get_chat(ch_id)
             if chat.type not in [ChatType.CHANNEL, ChatType.SUPERGROUP]:
-                return await res.reply("<b>❌ Only Channels or Supergroups are allowed.</b>", reply_markup=back_btn)
+                return await res.reply("<blockquote>❌ <b>Oɴʟʏ Cʜᴀɴɴᴇʟs ᴏʀ Sᴜᴘᴇʀɢʀᴏᴜᴘs ᴀʀᴇ ᴀʟʟᴏᴡᴇᴅ.</b></blockquote>", reply_markup=back_btn)
 
             bot_member = await client.get_chat_member(chat.id, "me")
             if bot_member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]:
-                return await res.reply("<b>❌ Bot must be an Admin in that channel.</b>", reply_markup=back_btn)
+                return await res.reply("<blockquote>❌ <b>Bᴏᴛ ᴍᴜsᴛ ʙᴇ ᴀɴ Aᴅᴍɪɴ ɪɴ ᴛʜᴀᴛ ᴄʜᴀɴɴᴇʟ.</b></blockquote>", reply_markup=back_btn)
 
             try:
                 link_obj = await client.create_chat_invite_link(chat.id, creates_join_request=True)
@@ -323,31 +323,31 @@ async def action_add_fsub(client: Client, callback_query: CallbackQuery):
 
             await db.add_channel(chat.id)
             await res.reply(
-                f"<b>✅ Channel Added Successfully!</b>\n\n"
-                f"<b>• Title:</b> <a href='{invite_link}'>{chat.title}</a>\n"
-                f"<b>• ID:</b> <code>{chat.id}</code>",
+                f"<blockquote>✅ <b>Cʜᴀɴɴᴇʟ Aᴅᴅᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b>\n\n"
+                f"<b>• Tɪᴛʟᴇ:</b> <a href='{invite_link}'>{chat.title}</a>\n"
+                f"<b>• ID:</b> <code>{chat.id}</code></blockquote>",
                 disable_web_page_preview=True,
                 reply_markup=back_btn
             )
         except Exception as e:
-            await res.reply(f"<b>❌ Failed to add channel:</b>\n<code>{e}</code>", reply_markup=back_btn)
+            await res.reply(f"<blockquote>❌ <b>Fᴀɪʟᴇᴅ ᴛᴏ ᴀᴅᴅ ᴄʜᴀɴɴᴇʟ:</b>\n<code>{e}</code></blockquote>", reply_markup=back_btn)
     except Exception:
-        await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
 
 @Bot.on_callback_query(filters.regex("^action_del_all_fsub$"))
 async def action_del_all_fsub(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     all_channels = await db.show_channels()
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_fsub")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_fsub")]])
 
     if not all_channels:
-        return await callback_query.message.edit_text("<b>❌ No Force-Sub channels found.</b>", reply_markup=back_btn)
+        return await callback_query.message.edit_text("<blockquote>❌ <b>Nᴏ Fᴏʀᴄᴇ-Sᴜʙ ᴄʜᴀɴɴᴇʟs ғᴏᴜɴᴅ.</b></blockquote>", reply_markup=back_btn)
 
     for ch_id in all_channels:
         await db.rem_channel(ch_id)
 
-    await callback_query.message.edit_text("<b>✅ All Force-Sub channels removed!</b>", reply_markup=back_btn)
+    await callback_query.message.edit_text("<blockquote>✅ <b>Aʟʟ Fᴏʀᴄᴇ-Sᴜʙ ᴄʜᴀɴɴᴇʟs ʀᴇᴍᴏᴠᴇᴅ!</b></blockquote>", reply_markup=back_btn)
 
 
 @Bot.on_callback_query(filters.regex("^action_clean_req_menu$"))
@@ -360,9 +360,9 @@ async def action_clean_req_menu(client: Client, callback_query: CallbackQuery):
         for ch_id in channels:
             buttons.append([InlineKeyboardButton(f"🧹 Cʟᴇᴀɴ ID: {ch_id}", callback_data=f"run_clean_req_{ch_id}")])
 
-    buttons.append([InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_fsub")])
+    buttons.append([InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_fsub")])
     await callback_query.message.edit_text(
-        "<b>Select a channel to clean non-request users:</b>",
+        "<blockquote><b>Sᴇʟᴇᴄᴛ ᴀ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴄʟᴇᴀɴ ɴᴏɴ-ʀᴇǫᴜᴇsᴛ ᴜsᴇʀs:</b></blockquote>",
         reply_markup=InlineKeyboardMarkup(buttons)
     )
 
@@ -371,17 +371,17 @@ async def action_clean_req_menu(client: Client, callback_query: CallbackQuery):
 async def run_clean_req_callback(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     channel_id = int(callback_query.data.split("_")[3])
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_fsub")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_fsub")]])
 
-    await callback_query.message.edit_text("<b>⏳ Cleaning up request list... Please wait.</b>")
+    await callback_query.message.edit_text("<blockquote>⏳ <b>Cʟᴇᴀɴɪɴɢ ᴜᴘ ʀᴇǫᴜᴇsᴛ ʟɪsᴛ... Pʟᴇᴀsᴇ ᴡᴀɪᴛ.</b></blockquote>")
 
     channel_data = await db.rqst_fsub_Channel_data.find_one({'_id': channel_id})
     if not channel_data:
-        return await callback_query.message.edit_text("<b>ℹ️ No request data found for this channel.</b>", reply_markup=back_btn)
+        return await callback_query.message.edit_text("<blockquote>ℹ️ <b>Nᴏ ʀᴇǫᴜᴇsᴛ ᴅᴀᴛᴀ ғᴏᴜɴᴅ ғᴏʀ ᴛʜɪs ᴄʜᴀɴɴᴇʟ.</b></blockquote>", reply_markup=back_btn)
 
     user_ids = channel_data.get("user_ids", [])
     if not user_ids:
-        return await callback_query.message.edit_text("<b>✅ No users to process.</b>", reply_markup=back_btn)
+        return await callback_query.message.edit_text("<blockquote>✅ <b>Nᴏ ᴜsᴇʀs ᴛᴏ ᴘʀᴏᴄᴇss.</b></blockquote>", reply_markup=back_btn)
 
     skipped = 0
     left_users = 0
@@ -401,9 +401,9 @@ async def run_clean_req_callback(client: Client, callback_query: CallbackQuery):
             skipped += 1
 
     await callback_query.message.edit_text(
-        f"<b>✅ Cleanup Completed for Channel:</b> <code>{channel_id}</code>\n\n"
-        f"<b>• Removed Non-Members:</b> <code>{left_users}</code>\n"
-        f"<b>• Active Members Retained:</b> <code>{skipped}</code>",
+        f"<blockquote>✅ <b>Cʟᴇᴀɴᴜᴘ Cᴏᴍᴘʟᴇᴛᴇᴅ ғᴏʀ Cʜᴀɴɴᴇʟ:</b> <code>{channel_id}</code>\n\n"
+        f"<b>• Rᴇᴍᴏᴠᴇᴅ Nᴏɴ-Mᴇᴍʙᴇʀs:</b> <code>{left_users}</code>\n"
+        f"<b>• Aᴄᴛɪᴠᴇ Mᴇᴍʙᴇʀs Rᴇᴛᴀɪɴᴇᴅ:</b> <code>{skipped}</code></blockquote>",
         reply_markup=back_btn
     )
 
@@ -420,15 +420,15 @@ async def panel_premium(client: Client, callback_query: CallbackQuery):
     upi_id = settings.get('upi_id', UPI_ID)
     
     status_btn = (
-        InlineKeyboardButton("✅ Pʀᴇᴍɪᴜᴍ I s ON", callback_data="action_toggle_premium")
+        InlineKeyboardButton("✅ Pʀᴇᴍɪᴜᴍ Is ON", callback_data="action_toggle_premium")
         if is_premium_on else 
-        InlineKeyboardButton("❌ Pʀᴇᴍɪᴜᴍ I s OFF", callback_data="action_toggle_premium")
+        InlineKeyboardButton("❌ Pʀᴇᴍɪᴜᴍ Is OFF", callback_data="action_toggle_premium")
     )
 
     caption = (
-        "<b>💎 Premium Plan Settings</b>\n\n"
+        "<blockquote><b>💎 Pʀᴇᴍɪᴜᴍ Pʟᴀɴ Sᴇᴛᴛɪɴɢs</b>\n\n"
         f"<b>• UPI ID:</b> <code>{upi_id}</code>\n"
-        f"<b>• Premium Status:</b> <code>{'Enabled' if is_premium_on else 'Disabled'}</code>"
+        f"<b>• Pʀᴇᴍɪᴜᴍ Sᴛᴀᴛᴜs:</b> <code>{'Eɴᴀʙʟᴇᴅ' if is_premium_on else 'Dɪsᴀʙʟᴇᴅ'}</code></blockquote>"
     )
 
     buttons = InlineKeyboardMarkup([
@@ -438,7 +438,7 @@ async def panel_premium(client: Client, callback_query: CallbackQuery):
         [InlineKeyboardButton("📊 Pʀᴇᴍɪᴜᴍ U sᴇʀs Lɪsᴛ", callback_data="action_premium_list")],
         [InlineKeyboardButton("💳 Sᴇᴛ UPI ID", callback_data="action_set_upi"), InlineKeyboardButton("🖼️ Sᴇᴛ QR Pɪᴄ", callback_data="action_set_qr")],
         [status_btn],
-        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_main")]
+        [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
 
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
@@ -461,12 +461,12 @@ async def panel_premium_text(client: Client, callback_query: CallbackQuery):
     settings = await db.get_bot_settings()
     plan_text = settings.get('premium_plan_text', None)
 
-    caption = "<b>📜 Custom Premium Plan Text</b>"
+    caption = "<blockquote><b>📜 Cᴜsᴛᴏᴍ Pʀᴇᴍɪᴜᴍ Pʟᴀɴ Tᴇxᴛ</b></blockquote>"
 
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("✏️ Sᴇᴛ Pʀᴇᴍɪᴜᴍ Pʟᴀɴ Tᴇxᴛ", callback_data="action_set_plan_text")],
         [InlineKeyboardButton("🗑️ Dᴇʟᴇᴛᴇ Pʀᴇᴍɪᴜᴍ Pʟᴀɴ Tᴇxᴛ", callback_data="action_del_plan_text")],
-        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium")]
+        [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_premium")]
     ])
 
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
@@ -477,23 +477,23 @@ async def action_set_plan_text(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium_text")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_premium_text")]])
 
     await client.send_message(
         chat_id=user_id,
-        text="<b>Please send your new Premium Plan Text...</b>\n\n<i>/cancel - Cancel process</i>",
+        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ ɴᴇᴡ Pʀᴇᴍɪᴜᴍ Pʟᴀɴ Tᴇxᴛ...</b>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
         res = await client.listen(chat_id=user_id, timeout=300)
         if not res.text or res.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
             
         new_text = res.text.html if hasattr(res.text, 'html') else res.text
         await db.update_bot_setting('premium_plan_text', new_text)
-        await res.reply("<b>✅ Premium Plan Text Updated Successfully!</b>", reply_markup=back_btn)
+        await res.reply("<blockquote>✅ <b>Pʀᴇᴍɪᴜᴍ Pʟᴀɴ Tᴇxᴛ Uᴘᴅᴀᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b></blockquote>", reply_markup=back_btn)
     except Exception:
-        await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
 
 @Bot.on_callback_query(filters.regex("^action_del_plan_text$"))
@@ -508,34 +508,34 @@ async def action_add_premium(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_premium")]])
 
     await client.send_message(
         chat_id=user_id,
-        text="<b>Please send User ID...</b>\n\n<i>/cancel - Cancel process</i>",
+        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ U sᴇʀ ID...</b>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
         res = await client.listen(chat_id=user_id, timeout=300)
         if not res.text or res.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
         target_id = int(res.text.strip())
 
         await client.send_message(
             chat_id=user_id,
             text=(
-                "<b>Send Duration and Unit:</b>\n\n"
-                "<b>Examples:</b>\n"
-                "• <code>30 d</code> (30 Days)\n"
-                "• <code>2 h</code> (2 Hours)\n\n"
-                "<i>/cancel - Cancel process</i>"
+                "<blockquote><b>Sᴇɴᴅ Dᴜʀᴀᴛɪᴏɴ ᴀɴᴅ Uɴɪᴛ:</b>\n\n"
+                "<b>E xᴀᴍᴘʟᴇs:</b>\n"
+                "• <code>30 d</code> (30 Dᴀʏs)\n"
+                "• <code>2 h</code> (2 Hᴏᴜʀs)\n\n"
+                "<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>"
             ),
             reply_markup=ForceReply(selective=True)
         )
         res_time = await client.listen(chat_id=user_id, timeout=300)
         if not res_time.text or res_time.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
         time_parts = res_time.text.strip().split()
         time_value = int(time_parts[0])
@@ -544,9 +544,9 @@ async def action_add_premium(client: Client, callback_query: CallbackQuery):
         expiration_time = await add_premium(target_id, time_value, time_unit)
 
         await res_time.reply(
-            f"<b>✅ User <code>{target_id}</code> Added to Premium!</b>\n\n"
-            f"<b>• Duration:</b> <code>{time_value} {time_unit}</code>\n"
-            f"<b>• Expires On:</b> <code>{expiration_time}</code>",
+            f"<blockquote>✅ <b>U sᴇʀ <code>{target_id}</code> Aᴅᴅᴇᴅ ᴛᴏ Pʀᴇᴍɪᴜᴍ!</b>\n\n"
+            f"<b>• Dᴜʀᴀᴛɪᴏɴ:</b> <code>{time_value} {time_unit}</code>\n"
+            f"<b>• E xᴘɪʀᴇs Oɴ:</b> <code>{expiration_time}</code></blockquote>",
             reply_markup=back_btn
         )
 
@@ -554,18 +554,18 @@ async def action_add_premium(client: Client, callback_query: CallbackQuery):
             await client.send_message(
                 chat_id=target_id,
                 text=(
-                    f"🎉 <b>Premium Activated!</b>\n\n"
-                    f"You have received premium access for <code>{time_value} {time_unit}</code>.\n"
-                    f"<b>Expires On:</b> <code>{expiration_time}</code>"
+                    f"<blockquote>🎉 <b>Pʀᴇᴍɪᴜᴍ Aᴄᴛɪᴠᴀᴛᴇᴅ!</b>\n\n"
+                    f"Yᴏᴜ ʜᴀᴠᴇ ʀᴇᴄᴇɪᴠᴇᴅ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇss ғᴏʀ <code>{time_value} {time_unit}</code>.\n"
+                    f"<b>E xᴘɪʀᴇs Oɴ:</b> <code>{expiration_time}</code></blockquote>"
                 )
             )
         except Exception:
             pass
 
     except ValueError:
-        await client.send_message(chat_id=user_id, text="<b>❌ Invalid Input Format!</b>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Iɴᴘᴜᴛ Fᴏʀᴍᴀᴛ!</b></blockquote>", reply_markup=back_btn)
     except Exception as e:
-        await client.send_message(chat_id=user_id, text=f"<b>❌ Error:</b> <code>{e}</code>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text=f"<blockquote>❌ <b>Eʀʀᴏʀ:</b> <code>{e}</code></blockquote>", reply_markup=back_btn)
 
 
 @Bot.on_callback_query(filters.regex("^action_remove_premium$"))
@@ -573,26 +573,26 @@ async def action_remove_premium(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_premium")]])
 
     await client.send_message(
         chat_id=user_id,
-        text="<b>Please send User ID...</b>\n\n<i>/cancel - Cancel process</i>",
+        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ U sᴇʀ ID...</b>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
         res = await client.listen(chat_id=user_id, timeout=300)
         if not res.text or res.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
         target_id = int(res.text.strip())
         await remove_premium(target_id)
 
-        await res.reply(f"<b>✅ User <code>{target_id}</code> Removed From Premium!</b>", reply_markup=back_btn)
+        await res.reply(f"<blockquote>✅ <b>U sᴇʀ <code>{target_id}</code> Rᴇᴍᴏᴠᴇᴅ Fʀᴏᴍ Pʀᴇᴍɪᴜᴍ!</b></blockquote>", reply_markup=back_btn)
     except ValueError:
-        await client.send_message(chat_id=user_id, text="<b>❌ Invalid User ID!</b>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ U sᴇʀ ID!</b></blockquote>", reply_markup=back_btn)
     except Exception as e:
-        await client.send_message(chat_id=user_id, text=f"<b>❌ Error:</b> <code>{e}</code>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text=f"<blockquote>❌ <b>Eʀʀᴏʀ:</b> <code>{e}</code></blockquote>", reply_markup=back_btn)
 
 
 @Bot.on_callback_query(filters.regex("^action_premium_list$"))
@@ -600,7 +600,7 @@ async def action_premium_list(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     
     close_btn = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cʟᴏsᴇ", callback_data="close_panel")]])
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_premium")]])
 
     ist = timezone("Asia/Kolkata")
     current_time = datetime.now(ist)
@@ -651,7 +651,7 @@ async def action_premium_list(client: Client, callback_query: CallbackQuery):
                 pass
 
         if count == 0:
-            return await callback_query.message.edit_text("<b>ℹ️ No active premium users found.</b>", reply_markup=back_btn)
+            return await callback_query.message.edit_text("<blockquote>ℹ️ <b>Nᴏ ᴀᴄᴛɪᴠᴇ ᴘʀᴇᴍɪᴜᴍ ᴜsᴇʀs ғᴏᴜɴᴅ.</b></blockquote>", reply_markup=back_btn)
 
         text_data = "\n".join(premium_user_list)
         file = io.BytesIO(text_data.encode('utf-8'))
@@ -660,12 +660,12 @@ async def action_premium_list(client: Client, callback_query: CallbackQuery):
         await client.send_document(
             chat_id=callback_query.from_user.id,
             document=file,
-            caption=f"<b>📊 Total Active Premium Users:</b> <code>{count}</code>",
+            caption=f"<blockquote><b>📊 Tᴏᴛᴀʟ Aᴄᴛɪᴠᴇ Pʀᴇᴍɪᴜᴍ U sᴇʀs:</b> <code>{count}</code></blockquote>",
             reply_markup=close_btn
         )
 
     except Exception as e:
-        await callback_query.message.edit_text(f"<b>❌ Error fetching list:</b> <code>{e}</code>", reply_markup=back_btn)
+        await callback_query.message.edit_text(f"<blockquote>❌ <b>Eʀʀᴏʀ ғᴇᴛᴄʜɪɴɢ ʟɪsᴛ:</b> <code>{e}</code></blockquote>", reply_markup=back_btn)
 
 
 @Bot.on_callback_query(filters.regex("^action_set_upi$"))
@@ -673,22 +673,22 @@ async def action_set_upi(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_premium")]])
 
     await client.send_message(
         chat_id=user_id,
-        text="<b>Please send your new UPI ID...</b>\n\n<i>/cancel - Cancel process</i>",
+        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ ɴᴇᴡ UPI ID...</b>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
         res = await client.listen(chat_id=user_id, timeout=300)
         if not res.text or res.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
         await db.update_bot_setting('upi_id', res.text.strip())
-        await res.reply("<b>✅ UPI ID Updated Successfully!</b>", reply_markup=back_btn)
+        await res.reply("<blockquote>✅ <b>UPI ID Uᴘᴅᴀᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b></blockquote>", reply_markup=back_btn)
     except Exception:
-        await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
 
 @Bot.on_callback_query(filters.regex("^action_set_qr$"))
@@ -696,22 +696,22 @@ async def action_set_qr(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_premium")]])
 
     await client.send_message(
         chat_id=user_id,
-        text="<b>Please send your new QR Image URL...</b>\n\n<i>/cancel - Cancel process</i>",
+        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ ɴᴇᴡ QR Iᴍᴀɢᴇ URL...</b>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
         res = await client.listen(chat_id=user_id, timeout=300)
         if not res.text or res.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
         await db.update_bot_setting('qr_pic', res.text.strip())
-        await res.reply("<b>✅ QR Pic Updated Successfully!</b>", reply_markup=back_btn)
+        await res.reply("<blockquote>✅ <b>QR Pɪᴄ Uᴘᴅᴀᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b></blockquote>", reply_markup=back_btn)
     except Exception:
-        await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
 
 # ==============================================================================
@@ -724,18 +724,18 @@ async def panel_verify(client: Client, callback_query: CallbackQuery):
     settings = await db.get_bot_settings()
     verify_mode = settings.get('verify_mode', True)
     status_btn = (
-        InlineKeyboardButton("✅ Vᴇʀɪғʏ I s ON", callback_data="action_toggle_verify")
+        InlineKeyboardButton("✅ Vᴇʀɪғʏ Is ON", callback_data="action_toggle_verify")
         if verify_mode else 
-        InlineKeyboardButton("❌ Vᴇʀɪғʏ I s OFF", callback_data="action_toggle_verify")
+        InlineKeyboardButton("❌ Vᴇʀɪғʏ Is OFF", callback_data="action_toggle_verify")
     )
 
-    caption = "<b>🪙 Token Verification Settings</b>\n\nSelect an option below to configure token verification:"
+    caption = "<blockquote><b>🪙 Tᴏᴋᴇɴ Vᴇʀɪғɪᴄᴀᴛɪᴏɴ Sᴇᴛᴛɪɴɢs</b>\n\nSᴇʟᴇᴄᴛ ᴀɴ ᴏᴘᴛɪᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴄᴏɴғɪɢᴜʀᴇ ᴛᴏᴋᴇɴ ᴠᴇʀɪғɪᴄᴀᴛɪᴏɴ:</blockquote>"
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("⚠️ Vᴇʀɪғɪᴄᴀᴛɪᴏɴ Sʜᴏʀᴛɴᴇʀ", callback_data="panel_shortener")],
         [InlineKeyboardButton("🪪 Vᴇʀɪғɪᴄᴀᴛɪᴏɴ Tᴜᴛᴏʀɪᴀʟ", callback_data="action_set_tut")],
         [InlineKeyboardButton("⏰ Vᴇʀɪғɪᴄᴀᴛɪᴏɴ Tɪᴍᴇ", callback_data="action_set_verify_time")],
         [status_btn],
-        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_main")]
+        [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
 
@@ -748,13 +748,13 @@ async def panel_shortener(client: Client, callback_query: CallbackQuery):
     short_api = settings.get('shortlink_api', SHORTLINK_API)
 
     caption = (
-        f"<b>⚠️ Verification Shortener Settings</b>\n\n"
+        f"<blockquote><b>⚠️ Vᴇʀɪғɪᴄᴀᴛɪᴏɴ Sʜᴏʀᴛɴᴇʀ Sᴇᴛᴛɪɴɢs</b>\n\n"
         f"<b>• URL:</b> <code>{short_url}</code>\n"
-        f"<b>• API:</b> <code>{short_api}</code>"
+        f"<b>• API:</b> <code>{short_api}</code></blockquote>"
     )
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("✏️ Sᴇᴛ Sʜᴏʀᴛʟɪɴᴋ", callback_data="action_set_shortlink"), InlineKeyboardButton("🗑️ Dᴇʟᴇᴛᴇ Sʜᴏʀᴛʟɪɴᴋ", callback_data="action_del_shortlink")],
-        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_verify")]
+        [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_verify")]
     ])
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
 
@@ -764,34 +764,34 @@ async def action_set_shortlink(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_shortener")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_shortener")]])
 
     msg1 = await client.send_message(
         chat_id=user_id,
-        text="<b>Please send your Shortlink URL...</b>\n\n<b>Format:</b> <code>vjlink.online</code>\n\n<i>/cancel - Cancel process</i>",
+        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ Sʜᴏʀᴛʟɪɴᴋ URL...</b>\n\n<b>Fᴏʀᴍᴀᴛ:</b> <code>vjlink.online</code>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
         res1 = await client.listen(chat_id=user_id, timeout=300)
         if not res1.text or res1.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
         new_url = res1.text.strip().replace("https://", "").replace("http://", "").rstrip("/")
 
         msg2 = await client.send_message(
             chat_id=user_id,
-            text="<b>Please send your Shortlink API Key...</b>\n\n<i>/cancel - Cancel process</i>",
+            text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ Sʜᴏʀᴛʟɪɴᴋ API Kᴇʏ...</b>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
             reply_markup=ForceReply(selective=True)
         )
         res2 = await client.listen(chat_id=user_id, timeout=300)
         if not res2.text or res2.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
         await db.update_bot_setting('shortlink_url', new_url)
         await db.update_bot_setting('shortlink_api', res2.text.strip())
-        await res2.reply("<b>✅ Shortlink Updated Successfully!</b>", reply_markup=back_btn)
+        await res2.reply("<blockquote>✅ <b>Sʜᴏʀᴛʟɪɴᴋ Uᴘᴅᴀᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b></blockquote>", reply_markup=back_btn)
     except Exception:
-        await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
 
 @Bot.on_callback_query(filters.regex("^action_del_shortlink$"))
@@ -816,22 +816,22 @@ async def action_set_tut(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_verify")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_verify")]])
 
     await client.send_message(
         chat_id=user_id,
-        text="<b>Please send your new Tutorial Video URL...</b>\n\n<i>/cancel - Cancel process</i>",
+        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ ɴᴇᴡ Tᴜᴛᴏʀɪᴀʟ Vɪᴅᴇᴏ URL...</b>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
         res = await client.listen(chat_id=user_id, timeout=300)
         if not res.text or res.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
         await db.update_bot_setting('tut_vid', res.text.strip())
-        await res.reply("<b>✅ Tutorial Link Updated Successfully!</b>", reply_markup=back_btn)
+        await res.reply("<blockquote>✅ <b>Tᴜᴛᴏʀɪᴀʟ Lɪɴᴋ Uᴘᴅᴀᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b></blockquote>", reply_markup=back_btn)
     except Exception:
-        await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
 
 @Bot.on_callback_query(filters.regex("^action_set_verify_time$"))
@@ -839,25 +839,25 @@ async def action_set_verify_time(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_verify")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_verify")]])
 
     await client.send_message(
         chat_id=user_id,
-        text="<b>Please send Token Expiry Time in seconds...</b>\n\n<i>Example: 3600 (1 Hour)</i>\n\n<i>/cancel - Cancel process</i>",
+        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ Tᴏᴋᴇɴ E xᴘɪʀʏ Tɪᴍᴇ ɪɴ sᴇᴄᴏɴᴅs...</b>\n\n<i>E xᴀᴍᴘʟᴇ: 3600 (1 Hᴏᴜʀ)</i>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
         res = await client.listen(chat_id=user_id, timeout=300)
         if not res.text or res.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
         if res.text.isdigit():
             await db.update_bot_setting('verify_expire', int(res.text.strip()))
-            await res.reply("<b>✅ Verification Time Updated!</b>", reply_markup=back_btn)
+            await res.reply("<blockquote>✅ <b>Vᴇʀɪғɪᴄᴀᴛɪᴏɴ Tɪᴍᴇ Uᴘᴅᴀᴛᴇᴅ!</b></blockquote>", reply_markup=back_btn)
         else:
-            await client.send_message(chat_id=user_id, text="<b>❌ Invalid Number!</b>", reply_markup=back_btn)
+            await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Nᴜᴍʙᴇʀ!</b></blockquote>", reply_markup=back_btn)
     except Exception:
-        await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
 
 # ==============================================================================
@@ -872,12 +872,12 @@ async def panel_caption(client: Client, callback_query: CallbackQuery):
 
     caption_status = "✅" if current_cap else "❌"
     caption = (
-        "<b>✍️ Custom Caption Settings</b>\n\n"
-        f"<b>• Custom Caption:</b> {caption_status}"
+        "<blockquote><b>✍️ Cᴜsᴛᴏᴍ Cᴀᴘᴛɪᴏɴ Sᴇᴛᴛɪɴɢs</b>\n\n"
+        f"<b>• Cᴜsᴛᴏᴍ Cᴀᴘᴛɪᴏɴ:</b> {caption_status}</blockquote>"
     )
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("✏️ Sᴇᴛ Cᴀᴘᴛɪᴏɴ", callback_data="action_set_caption"), InlineKeyboardButton("🗑️ Dᴇʟᴇᴛᴇ Cᴀᴘᴛɪᴏɴ", callback_data="action_del_caption")],
-        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_main")]
+        [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
 
@@ -887,22 +887,22 @@ async def action_set_caption(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_caption")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_caption")]])
 
     await client.send_message(
         chat_id=user_id,
-        text="<b>Please send your new Custom Caption...</b>\n\n<b>Available Tags:</b>\n• <code>{filename}</code>\n• <code>{previouscaption}</code>\n\n<i>/cancel - Cancel process</i>",
+        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ ɴᴇᴡ Cᴜsᴛᴏᴍ Cᴀᴘᴛɪᴏɴ...</b>\n\n<b>Aᴠᴀɪʟᴀʙʟᴇ Tᴀɢs:</b>\n• <code>{filename}</code>\n• <code>{previouscaption}</code>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
         res = await client.listen(chat_id=user_id, timeout=300)
         if not res.text or res.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
         await db.update_bot_setting('custom_caption', res.text.html if hasattr(res.text, 'html') else res.text)
-        await res.reply("<b>✅ Custom Caption Updated Successfully!</b>", reply_markup=back_btn)
+        await res.reply("<blockquote>✅ <b>Cᴜsᴛᴏᴍ Cᴀᴘᴛɪᴏɴ Uᴘᴅᴀᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b></blockquote>", reply_markup=back_btn)
     except Exception:
-        await client.send_message(chat_id=user_id, text="<b>❌ Process Cancelled</b>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
 
 @Bot.on_callback_query(filters.regex("^action_del_caption$"))
@@ -918,10 +918,10 @@ async def action_del_caption(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_message(filters.command('fsub_mode') & filters.private & admin)
 async def change_force_sub_mode_cmd(client: Client, message: Message):
-    temp = await message.reply("Please wait a sec...", quote=True)
+    temp = await message.reply("<blockquote>Pʟᴇᴀsᴇ ᴡᴀɪᴛ ᴀ sᴇᴄ...</blockquote>", quote=True)
     channels = await db.show_channels()
     if not channels:
-        return await temp.edit("<b>❌ No force-sub channels found.</b>")
+        return await temp.edit("<blockquote>❌ <b>Nᴏ ғᴏʀᴄᴇ-sᴜʙ ᴄʜᴀɴɴᴇʟs ғᴏᴜɴᴅ.</b></blockquote>")
 
     buttons = []
     for ch_id in channels:
@@ -934,51 +934,51 @@ async def change_force_sub_mode_cmd(client: Client, message: Message):
             buttons.append([InlineKeyboardButton(f"⚠️ {ch_id}", callback_data=f"toggle_rfs_{ch_id}")])
 
     buttons.append([InlineKeyboardButton("❌ Cʟᴏsᴇ", callback_data="close_panel")])
-    await temp.edit("<b>Select a channel to toggle Request Mode:</b>", reply_markup=InlineKeyboardMarkup(buttons))
+    await temp.edit("<blockquote><b>Sᴇʟᴇᴄᴛ ᴀ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴛᴏɢɢʟᴇ Rᴇǫᴜᴇsᴛ Mᴏᴅᴇ:</b></blockquote>", reply_markup=InlineKeyboardMarkup(buttons))
 
 
 @Bot.on_message(filters.command('addchnl') & filters.private & admin)
 async def add_force_sub_cmd(client: Client, message: Message):
     args = message.text.split(maxsplit=1)
     if len(args) != 2:
-        return await message.reply("Usage: <code>/addchnl -100xxxxxxxxxx</code>")
+        return await message.reply("<blockquote><b>Usᴀɢᴇ:</b> <code>/addchnl -100xxxxxxxxxx</code></blockquote>")
 
     try:
         chat_id = int(args[1])
         chat = await client.get_chat(chat_id)
         await db.add_channel(chat.id)
-        await message.reply(f"<b>✅ Added Channel:</b> {chat.title} (<code>{chat.id}</code>)")
+        await message.reply(f"<blockquote>✅ <b>Aᴅᴅᴇᴅ Cʜᴀɴɴᴇʟ:</b> {chat.title} (<code>{chat.id}</code>)</blockquote>")
     except Exception as e:
-        await message.reply(f"<b>❌ Error:</b> <code>{e}</code>")
+        await message.reply(f"<blockquote>❌ <b>Eʀʀᴏʀ:</b> <code>{e}</code></blockquote>")
 
 
 @Bot.on_message(filters.command('delchnl') & filters.private & admin)
 async def del_force_sub_cmd(client: Client, message: Message):
     args = message.text.split(maxsplit=1)
     if len(args) != 2:
-        return await message.reply("Usage: <code>/delchnl <channel_id | all></code>")
+        return await message.reply("<blockquote><b>Usᴀɢᴇ:</b> <code>/delchnl &lt;channel_id | all&gt;</code></blockquote>")
 
     if args[1].lower() == "all":
         channels = await db.show_channels()
         for c in channels:
             await db.rem_channel(c)
-        return await message.reply("<b>✅ All channels have been removed.</b>")
+        return await message.reply("<blockquote>✅ <b>Aʟʟ ᴄʜᴀɴɴᴇʟs ʜᴀᴠᴇ ʙᴇᴇɴ ʀᴇᴍᴏᴠᴇᴅ.</b></blockquote>")
 
     try:
         ch_id = int(args[1])
         await db.rem_channel(ch_id)
-        await message.reply(f"<b>✅ Channel removed:</b> <code>{ch_id}</code>")
+        await message.reply(f"<blockquote>✅ <b>Cʜᴀɴɴᴇʟ ʀᴇᴍᴏᴠᴇᴅ:</b> <code>{ch_id}</code></blockquote>")
     except Exception as e:
-        await message.reply(f"<b>❌ Error:</b> <code>{e}</code>")
+        await message.reply(f"<blockquote>❌ <b>Eʀʀᴏʀ:</b> <code>{e}</code></blockquote>")
 
 
 @Bot.on_message(filters.command('listchnl') & filters.private & admin)
 async def list_force_sub_channels_cmd(client: Client, message: Message):
     channels = await db.show_channels()
     if not channels:
-        return await message.reply("<b>❌ No force-sub channels found.</b>")
+        return await message.reply("<blockquote>❌ <b>Nᴏ ғᴏʀᴄᴇ-sᴜʙ ᴄʜᴀɴɴᴇʟs ғᴏᴜɴᴅ.</b></blockquote>")
 
-    res = "<b>⚡ Force-Sub Channels List:</b>\n\n"
+    res = "<b>⚡ Fᴏʀᴄᴇ-Sᴜʙ Cʜᴀɴɴᴇʟs Lɪsᴛ:</b>\n\n"
     for ch_id in channels:
         try:
             chat = await client.get_chat(ch_id)
@@ -986,21 +986,21 @@ async def list_force_sub_channels_cmd(client: Client, message: Message):
             m_icon = "✅ REQ" if mode == "on" else "❌ NORMAL"
             res += f"• <b>{chat.title}</b> [<code>{ch_id}</code>] - {m_icon}\n"
         except Exception:
-            res += f"• <code>{ch_id}</code> (Unavailable)\n"
+            res += f"• <code>{ch_id}</code> (Uɴᴀᴠᴀɪʟᴀʙʟᴇ)\n"
 
-    await message.reply(res)
+    await message.reply(f"<blockquote>{res}</blockquote>")
 
 
 @Bot.on_message(filters.command('delreq') & filters.private & admin)
 async def delete_requested_users_cmd(client: Client, message: Message):
     if len(message.command) < 2:
-        return await message.reply("Usage: <code>/delreq <channel_id></code>")
+        return await message.reply("<blockquote><b>Usᴀɢᴇ:</b> <code>/delreq &lt;channel_id&gt;</code></blockquote>")
 
     try:
         channel_id = int(message.command[1])
         channel_data = await db.rqst_fsub_Channel_data.find_one({'_id': channel_id})
         if not channel_data or not channel_data.get("user_ids"):
-            return await message.reply("<b>ℹ️ No request users found.</b>")
+            return await message.reply("<blockquote>ℹ️ <b>Nᴏ ʀᴇǫᴜᴇsᴛ ᴜsᴇʀs ғᴏᴜɴᴅ.</b></blockquote>")
 
         user_ids = channel_data.get("user_ids", [])
         removed = 0
@@ -1016,9 +1016,9 @@ async def delete_requested_users_cmd(client: Client, message: Message):
             except Exception:
                 pass
 
-        await message.reply(f"<b>✅ Cleanup complete, Removed Non-Members:</b> <code>{removed}</code>")
+        await message.reply(f"<blockquote>✅ <b>Cʟᴇᴀɴᴜᴘ ᴄᴏᴍᴘʟᴇᴛᴇ, Rᴇᴍᴏᴠᴇᴅ Nᴏɴ-Mᴇᴍʙᴇʀs:</b> <code>{removed}</code></blockquote>")
     except Exception as e:
-        await message.reply(f"<b>❌ Error:</b> <code>{e}</code>")
+        await message.reply(f"<blockquote>❌ <b>Eʀʀᴏʀ:</b> <code>{e}</code></blockquote>")
 
 
 # ==============================================================================
