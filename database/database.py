@@ -1,8 +1,5 @@
-import motor
-import asyncio
+import logging
 import motor.motor_asyncio
-import time
-import pymongo, os
 from config import (
     DB_URI, 
     DB_NAME, 
@@ -16,8 +13,6 @@ from config import (
     QR_PIC,
     PROTECT_CONTENT
 )
-import logging
-from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,9 +24,9 @@ default_verify = {
 }
 
 class Rohit:
-    def __init__(self, DB_URI, DB_NAME):
-        self.dbclient = motor.motor_asyncio.AsyncIOMotorClient(DB_URI)
-        self.database = self.dbclient[DB_NAME]
+    def __init__(self, db_uri: str, db_name: str):
+        self.dbclient = motor.motor_asyncio.AsyncIOMotorClient(db_uri)
+        self.database = self.dbclient[db_name]
 
         self.channel_data = self.database['channels']
         self.admins_data = self.database['admins']
@@ -46,24 +41,25 @@ class Rohit:
         self.multi_batches = self.database['multi_batches']
         self.settings_col = self.database['settings']
 
-    # USER DATA
-    async def present_user(self, user_id: int):
-        found = await self.user_data.find_one({'_id': user_id})
+    # ================= USER DATA =================
+    async def present_user(self, user_id: int) -> bool:
+        found = await self.user_data.find_one({'_id': user_id}, {'_id': 1})
         return bool(found)
 
     async def add_user(self, user_id: int):
-        await self.user_data.insert_one({'_id': user_id})
+        if not await self.present_user(user_id):
+            await self.user_data.insert_one({'_id': user_id})
 
-    async def full_userbase(self):
-        user_docs = await self.user_data.find().to_list(length=None)
+    async def full_userbase(self) -> list:
+        user_docs = await self.user_data.find({}, {'_id': 1}).to_list(length=None)
         return [doc['_id'] for doc in user_docs]
 
     async def del_user(self, user_id: int):
         await self.user_data.delete_one({'_id': user_id})
 
-    # ADMIN DATA
-    async def admin_exist(self, admin_id: int):
-        found = await self.admins_data.find_one({'_id': admin_id})
+    # ================= ADMIN DATA =================
+    async def admin_exist(self, admin_id: int) -> bool:
+        found = await self.admins_data.find_one({'_id': admin_id}, {'_id': 1})
         return bool(found)
 
     async def add_admin(self, admin_id: int):
@@ -71,16 +67,15 @@ class Rohit:
             await self.admins_data.insert_one({'_id': admin_id})
 
     async def del_admin(self, admin_id: int):
-        if await self.admin_exist(admin_id):
-            await self.admins_data.delete_one({'_id': admin_id})
+        await self.admins_data.delete_one({'_id': admin_id})
 
-    async def get_all_admins(self):
-        users_docs = await self.admins_data.find().to_list(length=None)
+    async def get_all_admins(self) -> list:
+        users_docs = await self.admins_data.find({}, {'_id': 1}).to_list(length=None)
         return [doc['_id'] for doc in users_docs]
 
-    # BAN USER DATA
-    async def ban_user_exist(self, user_id: int):
-        found = await self.banned_user_data.find_one({'_id': user_id})
+    # ================= BAN USER DATA =================
+    async def ban_user_exist(self, user_id: int) -> bool:
+        found = await self.banned_user_data.find_one({'_id': user_id}, {'_id': 1})
         return bool(found)
 
     async def add_ban_user(self, user_id: int):
@@ -88,28 +83,23 @@ class Rohit:
             await self.banned_user_data.insert_one({'_id': user_id})
 
     async def del_ban_user(self, user_id: int):
-        if await self.ban_user_exist(user_id):
-            await self.banned_user_data.delete_one({'_id': user_id})
+        await self.banned_user_data.delete_one({'_id': user_id})
 
-    async def get_ban_users(self):
-        users_docs = await self.banned_user_data.find().to_list(length=None)
+    async def get_ban_users(self) -> list:
+        users_docs = await self.banned_user_data.find({}, {'_id': 1}).to_list(length=None)
         return [doc['_id'] for doc in users_docs]
 
-    # AUTO DELETE TIMER
+    # ================= AUTO DELETE TIMER =================
     async def set_del_timer(self, value: int):        
-        existing = await self.del_timer_data.find_one({})
-        if existing:
-            await self.del_timer_data.update_one({}, {'$set': {'value': value}})
-        else:
-            await self.del_timer_data.insert_one({'value': value})
+        await self.del_timer_data.update_one({}, {'$set': {'value': value}}, upsert=True)
 
-    async def get_del_timer(self):
+    async def get_del_timer(self) -> int:
         data = await self.del_timer_data.find_one({})
-        return data.get('value', 600) if data else 0
+        return data.get('value', 600) if data else 600
 
-    # CHANNEL MANAGEMENT
-    async def channel_exist(self, channel_id: int):
-        found = await self.fsub_data.find_one({'_id': channel_id})
+    # ================= CHANNEL MANAGEMENT =================
+    async def channel_exist(self, channel_id: int) -> bool:
+        found = await self.fsub_data.find_one({'_id': channel_id}, {'_id': 1})
         return bool(found)
 
     async def add_channel(self, channel_id: int):
@@ -117,14 +107,13 @@ class Rohit:
             await self.fsub_data.insert_one({'_id': channel_id})
 
     async def rem_channel(self, channel_id: int):
-        if await self.channel_exist(channel_id):
-            await self.fsub_data.delete_one({'_id': channel_id})
+        await self.fsub_data.delete_one({'_id': channel_id})
 
-    async def show_channels(self):
-        channel_docs = await self.fsub_data.find().to_list(length=None)
+    async def show_channels(self) -> list:
+        channel_docs = await self.fsub_data.find({}, {'_id': 1}).to_list(length=None)
         return [doc['_id'] for doc in channel_docs]
 
-    async def get_channel_mode(self, channel_id: int):
+    async def get_channel_mode(self, channel_id: int) -> str:
         data = await self.fsub_data.find_one({'_id': channel_id})
         return data.get("mode", "off") if data else "off"
 
@@ -135,41 +124,58 @@ class Rohit:
             upsert=True
         )
 
-    # VERIFICATION MANAGEMENT
-    async def db_verify_status(self, user_id):
+    # ================= REQUEST FORCE-SUB MANAGEMENT =================
+    async def req_user_exist(self, channel_id: int, user_id: int) -> bool:
+        found = await self.rqst_fsub_data.find_one({'channel_id': channel_id, 'user_id': user_id})
+        return bool(found)
+
+    async def add_req_user(self, channel_id: int, user_id: int):
+        if not await self.req_user_exist(channel_id, user_id):
+            await self.rqst_fsub_data.insert_one({'channel_id': channel_id, 'user_id': user_id})
+
+    async def del_req_user(self, channel_id: int, user_id: int):
+        await self.rqst_fsub_data.delete_one({'channel_id': channel_id, 'user_id': user_id})
+
+    async def del_req_user_all(self, user_id: int):
+        await self.rqst_fsub_data.delete_many({'user_id': user_id})
+
+    # ================= VERIFICATION MANAGEMENT =================
+    async def db_verify_status(self, user_id: int) -> dict:
         user = await self.user_data.find_one({'_id': user_id})
         return user.get('verify_status', default_verify) if user else default_verify
 
-    async def db_update_verify_status(self, user_id, verify):
+    async def db_update_verify_status(self, user_id: int, verify: dict):
         await self.user_data.update_one({'_id': user_id}, {'$set': {'verify_status': verify}})
 
-    async def get_verify_status(self, user_id):
+    async def get_verify_status(self, user_id: int) -> dict:
         return await self.db_verify_status(user_id)
 
-    async def update_verify_status(self, user_id, verify_token="", is_verified=False, verified_time=0, link=""):
+    async def update_verify_status(self, user_id: int, verify_token="", is_verified=False, verified_time=0, link=""):
         current = await self.db_verify_status(user_id)
-        current['verify_token'] = verify_token
-        current['is_verified'] = is_verified
-        current['verified_time'] = verified_time
-        current['link'] = link
+        current.update({
+            'verify_token': verify_token,
+            'is_verified': is_verified,
+            'verified_time': verified_time,
+            'link': link
+        })
         await self.db_update_verify_status(user_id, current)
 
     async def set_verify_count(self, user_id: int, count: int):
         await self.sex_data.update_one({'_id': user_id}, {'$set': {'verify_count': count}}, upsert=True)
 
-    async def get_verify_count(self, user_id: int):
+    async def get_verify_count(self, user_id: int) -> int:
         user = await self.sex_data.find_one({'_id': user_id})
         return user.get('verify_count', 0) if user else 0
 
     async def reset_all_verify_counts(self):
         await self.sex_data.update_many({}, {'$set': {'verify_count': 0}})
 
-    async def get_total_verify_count(self):
+    async def get_total_verify_count(self) -> int:
         pipeline = [{"$group": {"_id": None, "total": {"$sum": "$verify_count"}}}]
         result = await self.sex_data.aggregate(pipeline).to_list(length=1)
         return result[0]["total"] if result else 0
 
-    # MULTI-BATCH MANAGEMENT
+    # ================= MULTI-BATCH MANAGEMENT =================
     async def get_multi_batch(self, batch_id: str):
         return await self.multi_batches.find_one({"batch_id": batch_id})
 
@@ -184,8 +190,8 @@ class Rohit:
     async def update_multi_batch_ranges(self, batch_id: str, ranges: list):
         await self.multi_batches.update_one({"batch_id": batch_id}, {"$set": {"ranges": ranges}})
 
-    # ⚙️ DYNAMIC BOT SETTINGS MANAGEMENT
-    async def get_bot_settings(self):
+    # ================= DYNAMIC BOT SETTINGS MANAGEMENT =================
+    async def get_bot_settings(self) -> dict:
         settings = await self.settings_col.find_one({'_id': 'bot_settings'})
         if not settings:
             default_settings = {
@@ -202,7 +208,7 @@ class Rohit:
                 'upi_id': UPI_ID,
                 'qr_pic': QR_PIC,
                 'premium_plan_text': "",
-                'protect_content': PROTECT_CONTENT  # 🛡️ Dynamic Protect Content Default
+                'protect_content': PROTECT_CONTENT
             }
             await self.settings_col.insert_one(default_settings)
             return default_settings
