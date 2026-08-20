@@ -7,6 +7,7 @@ import string
 import time
 import logging
 import traceback
+import base64  # Vercel Anti-Bypass Data Encoding
 from datetime import datetime, timedelta
 from pyrogram import Client, filters, __version__, enums
 from pyrogram.enums import ParseMode, ChatAction
@@ -120,7 +121,7 @@ async def start_command(client: Client, message: Message):
             return await handle_multi_batch_start(client, message, base64_string)
 
         # ----------------------------------------------------------------------
-        # DYNAMIC VERIFICATION ENGINE (Database Driven Settings)
+        # DYNAMIC VERIFICATION ENGINE (Vercel Anti-Bypass Integrated)
         # ----------------------------------------------------------------------
         verify_status = await db.get_verify_status(user_id)
 
@@ -162,8 +163,18 @@ async def start_command(client: Client, message: Message):
                 token = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
                 await db.update_verify_status(user_id, verify_token=token, link=base64_string)
                 
-                # Fast Direct Link Generation
-                link = await get_shortlink(shortlink_url, shortlink_api, f'https://t.me/{client.username}?start=verify_{token}')
+                # 1. Target Telegram redirect link
+                tg_verify_url = f'https://t.me/{client.username}?start=verify_{token}'
+
+                # 2. Encode to Base64
+                encoded_tg_url = base64.b64encode(tg_verify_url.encode('utf-8')).decode('utf-8')
+
+                # 3. Construct Anti-Bypass Vercel Gate URL
+                vercel_gate_url = f"https://myminia.vercel.app/?data={encoded_tg_url}"
+
+                # 4. Shorten the Vercel Gate link
+                link = await get_shortlink(shortlink_url, shortlink_api, vercel_gate_url)
+
                 btn = [
                     [InlineKeyboardButton("• Vᴇʀɪғɪᴇᴅ •", url=link),
                      InlineKeyboardButton("• Tᴜᴛᴏʀɪᴀʟ •", url=tut_vid)],
@@ -446,7 +457,7 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
 
     except Exception as e:
         logger.error(f"❌ [START MBATCH ERROR] {e}\n{traceback.format_exc()}")
-        await message.reply_text(f"<blockquote>❌ <b>Sᴛᴀʀᴛ Eʀʀᴏʀ:</b> <code>{e}</code></blockquote>")
+        await message.reply_text(f"<blockquote>❌ <b>Sᴛᴀʀᴛ EʀʀᴏR:</b> <code>{e}</code></blockquote>")
 
 
 # ==============================================================================
@@ -611,7 +622,7 @@ async def add_premium_user_command(client: Client, msg: Message):
             pass
 
     except ValueError:
-        await msg.reply_text("<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Iɴᴘᴜᴛ. Pʟᴇᴀsᴇ Eɴsᴜʀᴇ Uꜱᴇʀ ID Aɴᴅ Tɪᴍᴇ Vᴀʟᴜᴇ Aʀᴇ Nᴜᴍʙᴇʀs.</b></blockquote>")
+        await msg.reply_text("<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Iɴᴘᴜᴛ. Pʟᴇᴀsᴇ Eɴsᴜʀᴇ Uꜱᴇʀ ID Aɴᴅ Tɪᴍᴇ Vᴀʟᴜᴇ Aʀᴇ NᴜᴍʙᴇRꜱ.</b></blockquote>")
     except Exception as e:
         await msg.reply_text(f"<blockquote>⚠️ <b>Aɴ Eʀʀᴏʀ Oᴄᴄᴜʀʀᴇᴅ:</b> <code>{str(e)}</code></blockquote>")
 
