@@ -1,5 +1,6 @@
 import logging
 import motor.motor_asyncio
+import config
 from config import (
     DB_URI, 
     DB_NAME, 
@@ -10,11 +11,14 @@ from config import (
     START_MSG,
     START_PIC,
     UPI_ID,
-    QR_PIC,
-    PROTECT_CONTENT
+    QR_PIC
 )
 
+# Optional config fallback
+PROTECT_CONTENT = getattr(config, 'PROTECT_CONTENT', False)
+
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 default_verify = {
     'is_verified': False,
@@ -23,7 +27,14 @@ default_verify = {
     'link': ""
 }
 
+def new_user(id: int):
+    return {
+        '_id': id,
+        'verify_status': default_verify
+    }
+
 class Rohit:
+
     def __init__(self, db_uri: str, db_name: str):
         self.dbclient = motor.motor_asyncio.AsyncIOMotorClient(db_uri)
         self.database = self.dbclient[db_name]
@@ -125,19 +136,59 @@ class Rohit:
         )
 
     # ================= REQUEST FORCE-SUB MANAGEMENT =================
-    async def req_user_exist(self, channel_id: int, user_id: int) -> bool:
-        found = await self.rqst_fsub_data.find_one({'channel_id': channel_id, 'user_id': user_id})
-        return bool(found)
+    async def req_user(self, channel_id: int, user_id: int):
+        try:
+            await self.rqst_fsub_Channel_data.update_one(
+                {'_id': int(channel_id)},
+                {'$addToSet': {'user_ids': int(user_id)}},
+                upsert=True
+            )
+            await self.rqst_fsub_data.update_one(
+                {'channel_id': int(channel_id), 'user_id': int(user_id)},
+                {'$set': {'channel_id': int(channel_id), 'user_id': int(user_id)}},
+                upsert=True
+            )
+        except Exception as e:
+            logger.error(f"[DB ERROR] Failed to add user to request list: {e}")
 
     async def add_req_user(self, channel_id: int, user_id: int):
-        if not await self.req_user_exist(channel_id, user_id):
-            await self.rqst_fsub_data.insert_one({'channel_id': channel_id, 'user_id': user_id})
+        await self.req_user(channel_id, user_id)
 
     async def del_req_user(self, channel_id: int, user_id: int):
-        await self.rqst_fsub_data.delete_one({'channel_id': channel_id, 'user_id': user_id})
+        await self.rqst_fsub_Channel_data.update_one(
+            {'_id': int(channel_id)}, 
+            {'$pull': {'user_ids': int(user_id)}}
+        )
+        await self.rqst_fsub_data.delete_one({'channel_id': int(channel_id), 'user_id': int(user_id)})
 
     async def del_req_user_all(self, user_id: int):
-        await self.rqst_fsub_data.delete_many({'user_id': user_id})
+        await self.rqst_fsub_Channel_data.update_many(
+            {}, 
+            {'$pull': {'user_ids': int(user_id)}}
+        )
+        await self.rqst_fsub_data.delete_many({'user_id': int(user_id)})
+
+    async def req_user_exist(self, channel_id: int, user_id: int) -> bool:
+        try:
+            found_ch = await self.rqst_fsub_Channel_data.find_one({
+                '_id': int(channel_id),
+                'user_ids': int(user_id)
+            })
+            if found_ch:
+                return True
+
+            found_doc = await self.rqst_fsub_data.find_one({
+                'channel_id': int(channel_id),
+                'user_id': int(user_id)
+            })
+            return bool(found_doc)
+        except Exception as e:
+            logger.error(f"[DB ERROR] Failed to check request list: {e}")
+            return False  
+
+    async def reqChannel_exist(self, channel_id: int) -> bool:
+        channel_ids = await self.show_channels()
+        return channel_id in channel_ids
 
     # ================= VERIFICATION MANAGEMENT =================
     async def db_verify_status(self, user_id: int) -> dict:
