@@ -29,7 +29,7 @@ OWNER = os.environ.get("OWNER", "Kcxry")  # Owner username without @
 # 🔴 FIX: OWNER_ID aur ADMINS ko List mein convert kiya gaya hai
 OWNER_ID = [int(x) for x in os.environ.get("OWNER_ID", "5898522531").split()]
 ADMINS = [int(x) for x in os.environ.get("ADMINS", "5898522531").split()]
-
+OWNER_ID = int(os.environ.get("OWNER_ID", "5898522531"))
 # --------------------------------------------
 PORT = os.environ.get("PORT", "8001")
 # --------------------------------------------
