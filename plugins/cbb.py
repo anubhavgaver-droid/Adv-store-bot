@@ -8,7 +8,7 @@ from config import *
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from database.database import *
 from pyrogram import enums
-from admin import send_main_settings_panel  # एडमिन पैनल कॉल करने के लिए
+from adminz import send_main_settings_panel  # एडमिन पैनल कॉल करने के लिए
 
 @Bot.on_callback_query()
 async def cb_handler(client: Bot, query: CallbackQuery):
