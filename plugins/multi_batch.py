@@ -12,7 +12,7 @@ from database.database import db
 
 logger = logging.getLogger(__name__)
 
-# --- Helper Functions (Your Code Pattern) ---
+# --- Helper Functions ---
 async def get_chat_and_msg_id(client: Client, message: Message):
     if message.forward_from_chat:
         return message.forward_from_chat.id, message.forward_from_message_id
@@ -53,17 +53,17 @@ async def show_admin_batch_menu(client: Client, user_id: int, batch_id: str, mes
         for index, item in enumerate(ranges):
             buttons.append([
                 InlineKeyboardButton(f"📺 {item['title']}", callback_data="ignore"),
-                InlineKeyboardButton("❌ Delete", callback_data=f"del_mrange_{batch_id}_{index}")
+                InlineKeyboardButton("❌ Dᴇʟᴇᴛᴇ", callback_data=f"del_mrange_{batch_id}_{index}")
             ])
 
-        buttons.append([InlineKeyboardButton("➕ Add New Episode Range (+)", callback_data=f"add_mrange_{batch_id}")])
-        buttons.append([InlineKeyboardButton("🔗 Get Master Share Link", callback_data=f"get_mlink_{batch_id}")])
+        buttons.append([InlineKeyboardButton("➕ Aᴅᴅ Nᴇᴡ Eᴘɪsᴏᴅᴇ Rᴀɴɢᴇ (+)", callback_data=f"add_mrange_{batch_id}")])
+        buttons.append([InlineKeyboardButton("🔗 Gᴇᴛ Mᴀsᴛᴇʀ Sʜᴀʀᴇ Lɪɴᴋ", callback_data=f"get_mlink_{batch_id}")])
 
         markup = InlineKeyboardMarkup(buttons)
         text = (
-            f"⚙️ **Multi-Batch Editor:** `{batch_id}`\n\n"
-            f"Total Episode Buttons: `{len(ranges)}`\n\n"
-            f"Naya episode range add karne ke liye **➕ Add** button par click karein."
+            f"<blockquote>⚙️ <b>Mᴜʟᴛɪ-Bᴀᴛᴄʜ Eᴅɪᴛᴏʀ:</b> <code>{batch_id}</code>\n\n"
+            f"<b>Tᴏᴛᴀʟ Eᴘɪsᴏᴅᴇ Bᴜᴛᴛᴏɴs:</b> <code>{len(ranges)}</code>\n\n"
+            f"Cʟɪᴄᴋ ᴛʜᴇ <b>➕ Aᴅᴅ</b> ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴀᴅᴅ ᴀ ɴᴇᴡ ᴇᴘɪsᴏᴅᴇ ʀᴀɴɢᴇ.</blockquote>"
         )
 
         if message_to_edit:
@@ -80,7 +80,11 @@ async def show_admin_batch_menu(client: Client, user_id: int, batch_id: str, mes
 @Bot.on_message(filters.private & admin & filters.command("multi_batch"))
 async def multi_batch_cmd(client: Client, message: Message):
     if len(message.command) < 2:
-        await message.reply_text("❌ **Usage:** `/multi_batch <batch_id>`\n\nExample: `/multi_batch naruto_series`", quote=True)
+        await message.reply_text(
+            "<blockquote>❌ <b>Uꜱᴀɢᴇ:</b> <code>/multi_batch &lt;batch_id&gt;</code>\n\n"
+            "<b>E xᴀᴍᴘʟᴇ:</b> <code>/multi_batch naruto_series</code></blockquote>",
+            quote=True
+        )
         return
 
     batch_id = message.command[1].strip().lower()
@@ -97,64 +101,64 @@ async def multi_batch_admin_callbacks(client: Client, query: CallbackQuery):
     user_id = query.from_user.id
 
     if data == "ignore":
-        await query.answer("यह सिर्फ़ टाइटल बटन है।", show_alert=False)
+        await query.answer("⚠️ Tʜɪs ɪs ᴊᴜsᴛ ᴀ ᴛɪᴛʟᴇ ʙᴜᴛᴛᴏɴ.", show_alert=False)
         return
 
     await query.answer()
 
-    # --- Naya Episode Range Add karna (+) ---
+    # --- Add New Episode Range (+) ---
     if data.startswith("add_mrange_"):
         batch_id = data.replace("add_mrange_", "")
 
         # Step 1: Button Title
         title_msg = await client.ask(
             chat_id=user_id,
-            text="📝 **Enter Button Title:**\n\n(Example: `Ep 1 to 10` ya `Season 1`)",
+            text="<blockquote>📝 <b>Eɴᴛᴇʀ Bᴜᴛᴛᴏɴ Tɪᴛʟᴇ:</b>\n\n(E xᴀᴍᴘʟᴇ: <code>Eᴘ 1 ᴛᴏ 10</code> ᴏʀ <code>Sᴇᴀsᴏɴ 1</code>)</blockquote>",
             timeout=60
         )
         if not title_msg or (title_msg.text and title_msg.text.startswith("/")):
-            await query.message.reply("❌ Process Cancelled!")
+            await query.message.reply("<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ!</b></blockquote>")
             return
         btn_title = title_msg.text.strip()
 
         # Step 2: First Message
         first_message = await client.ask(
             chat_id=user_id,
-            text=f"Forward First Message for **'{btn_title}'** or Send Link:",
+            text=f"<blockquote>Fᴏʀᴡᴀʀᴅ Fɪʀsᴛ Mᴇssᴀɢᴇ ғᴏʀ <b>'{btn_title}'</b> ᴏʀ Sᴇɴᴅ Lɪɴᴋ:</blockquote>",
             timeout=60
         )
         if not first_message or (first_message.text and first_message.text.startswith("/")):
-            await query.message.reply("❌ Process Cancelled!")
+            await query.message.reply("<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ!</b></blockquote>")
             return
 
         f_chat_id, f_msg_id = await get_chat_and_msg_id(client, first_message)
         if not f_chat_id or not f_msg_id:
-            await query.message.reply("❌ Invalid Link or Message!")
+            await query.message.reply("<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Lɪɴᴋ Oʀ Mᴇssᴀɢᴇ!</b></blockquote>")
             return
 
         if not await is_bot_admin(client, f_chat_id):
-            await query.message.reply("⚠️ Bot is not Admin in target channel!")
+            await query.message.reply("<blockquote>⚠️ <b>Bᴏᴛ Iꜱ Nᴏᴛ Aᴅᴍɪɴ Iɴ Tᴀʀɢᴇᴛ Cʜᴀɴɴᴇʟ!</b></blockquote>")
             return
 
         # Step 3: Last Message
         second_message = await client.ask(
             chat_id=user_id,
-            text=f"Forward Last Message for **'{btn_title}'** or Send Link:",
+            text=f"<blockquote>Fᴏʀᴡᴀʀᴅ Lᴀsᴛ Mᴇssᴀɢᴇ ғᴏʀ <b>'{btn_title}'</b> ᴏʀ Sᴇɴᴅ Lɪɴᴋ:</blockquote>",
             timeout=60
         )
         if not second_message or (second_message.text and second_message.text.startswith("/")):
-            await query.message.reply("❌ Process Cancelled!")
+            await query.message.reply("<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ!</b></blockquote>")
             return
 
         s_chat_id, s_msg_id = await get_chat_and_msg_id(client, second_message)
         if not s_chat_id or not s_msg_id or f_chat_id != s_chat_id:
-            await query.message.reply("❌ Both messages must be from the same channel!")
+            await query.message.reply("<blockquote>❌ <b>Bᴏᴛʜ Mᴇssᴀɢᴇs Mᴜsᴛ Bᴇ Fʀᴏᴍ Tʜᴇ Sᴀᴍᴇ Cʜᴀɴɴᴇʟ!</b></blockquote>")
             return
 
-        # --- DB Channel Copy Processing (Codexbotz Standard) ---
+        # --- DB Channel Copy Processing ---
         db_channel_id = client.db_channel.id
         if f_chat_id != db_channel_id:
-            status_msg = await query.message.reply("⏳ Copying messages to DB channel...", quote=True)
+            status_msg = await query.message.reply("<blockquote>⏳ <b>Cᴏᴘʏɪɴɢ Mᴇssᴀɢᴇs Tᴏ DB Cʜᴀɴɴᴇʟ...</b></blockquote>", quote=True)
             copied_start_id = None
             copied_end_id = None
 
@@ -176,16 +180,16 @@ async def multi_batch_admin_callbacks(client: Client, query: CallbackQuery):
                 f_msg_id = copied_start_id
                 s_msg_id = copied_end_id
             else:
-                await query.message.reply("❌ Failed to copy messages to DB channel.")
+                await query.message.reply("<blockquote>❌ <b>Fᴀɪʟᴇᴅ Tᴏ Cᴏᴘʏ Mᴇssᴀɢᴇs Tᴏ DB Cʜᴀɴɴᴇʟ.</b></blockquote>")
                 return
 
-        # 🎯 Codexbotz Exact Formula to create Base64 Hash
+        # Create Base64 Hash
         string = f"get-{f_msg_id * abs(db_channel_id)}-{s_msg_id * abs(db_channel_id)}"
         base64_string = await encode(string)
 
         new_range = {
             "title": btn_title,
-            "base64_hash": base64_string  # 👈 Storing Codexbotz standard batch link hash
+            "base64_hash": base64_string
         }
 
         await db.add_range_to_multi_batch(batch_id, new_range)
@@ -196,8 +200,8 @@ async def multi_batch_admin_callbacks(client: Client, query: CallbackQuery):
         batch_id = data.replace("get_mlink_", "")
         bot_username = client.username if hasattr(client, "username") else (await client.get_me()).username
         link = f"https://t.me/{bot_username}?start=batch_{batch_id}"
-        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Share URL", url=f'https://telegram.me/share/url?url={link}')]])
-        await query.message.reply_text(f"✨ **Master Episode Link:**\n\n{link}", reply_markup=reply_markup)
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Sʜᴀʀᴇ URL", url=f'https://telegram.me/share/url?url={link}')]])
+        await query.message.reply_text(f"<blockquote>✨ <b>Mᴀsᴛᴇʀ Eᴘɪsᴏᴅᴇ Lɪɴᴋ:</b>\n\n{link}</blockquote>", reply_markup=reply_markup)
 
     # --- Delete Range ---
     elif data.startswith("del_mrange_"):
