@@ -53,7 +53,6 @@ async def admin_settings_panel(client: Client, message: Message):
     await send_main_settings_panel(message)
 
 
-# ⚙️ start.py के "⚙️ SETTINGS" बटन पर क्लिक करने से यह ट्रिगर होकर मेन्यू खोलेगा
 @Bot.on_callback_query(filters.regex("^cb_settings$"))
 async def cb_settings_handler(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
@@ -134,14 +133,14 @@ async def panel_start_settings(client: Client, callback_query: CallbackQuery):
 
     caption = (
         "<b>🚀 START SETTINGS MANAGEMENT</b>\n\n"
-        f"<b>• Start Pic Link:</b> {start_pic}\n"
+        f"<b>• Start Pic Link:</b> {start_pic if start_pic else '❌ NOT SET'}\n"
         f"<b>• Blur (Spoiler) Mode:</b> <code>{spoiler_status}</code>\n\n"
-        f"<b>• Current Start Text:</b>\n<code>{start_msg}</code>"
+        f"<b>• Current Start Text:</b>\n<code>{start_msg if start_msg else '❌ NOT SET (DEFAULT WILL BE USED)'}</code>"
     )
 
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✏️ SET START MSG", callback_data="action_set_start_msg")],
-        [InlineKeyboardButton("🖼️ SET START PIC", callback_data="action_set_start_pic")],
+        [InlineKeyboardButton("✏️ SET START MSG", callback_data="action_set_start_msg"), InlineKeyboardButton("🗑️ DEL MSG", callback_data="action_del_start_msg")],
+        [InlineKeyboardButton("🖼️ SET START PIC", callback_data="action_set_start_pic"), InlineKeyboardButton("🗑️ DEL PIC", callback_data="action_del_start_pic")],
         [InlineKeyboardButton(f"👁️ {spoiler_status}", callback_data="action_toggle_spoiler")],
         [InlineKeyboardButton("ᐸ BACK", callback_data="panel_main")]
     ])
@@ -184,6 +183,13 @@ async def action_set_start_msg(client: Client, callback_query: CallbackQuery):
         await client.send_message(chat_id=user_id, text="<b>CANCELLED THIS PROCESS...</b>", reply_markup=back_btn)
 
 
+@Bot.on_callback_query(filters.regex("^action_del_start_msg$"))
+async def action_del_start_msg(client: Client, callback_query: CallbackQuery):
+    await db.update_bot_setting('start_msg', None)
+    await callback_query.answer("🗑️ Start Message Deleted!", show_alert=True)
+    await panel_start_settings(client, callback_query)
+
+
 @Bot.on_callback_query(filters.regex("^action_set_start_pic$"))
 async def action_set_start_pic(client: Client, callback_query: CallbackQuery):
     await callback_query.message.delete()
@@ -204,6 +210,13 @@ async def action_set_start_pic(client: Client, callback_query: CallbackQuery):
         await res.reply("✅ <b>START PIC UPDATED SUCCESSFULLY!</b>", reply_markup=back_btn)
     except Exception:
         await client.send_message(chat_id=user_id, text="<b>CANCELLED THIS PROCESS...</b>", reply_markup=back_btn)
+
+
+@Bot.on_callback_query(filters.regex("^action_del_start_pic$"))
+async def action_del_start_pic(client: Client, callback_query: CallbackQuery):
+    await db.update_bot_setting('start_pic', None)
+    await callback_query.answer("🗑️ Start Photo Deleted!", show_alert=True)
+    await panel_start_settings(client, callback_query)
 
 
 # ==============================================================================
