@@ -293,30 +293,48 @@ async def start_command(client: Client, message: Message):
         except Exception:
             pass  
         
-        # ⚙️ यहाँ वेलकम मैसेज में सेटिंग्स बटन जोड़ दिया गया है
+        # 🟢 DYNAMIC START MESSAGE, START PIC & SPOILER (BLUR) FROM DB
+        bot_settings = await db.get_bot_settings()
+        dyn_start_msg = bot_settings.get('start_msg', START_MSG)
+        dyn_start_pic = bot_settings.get('start_pic', START_PIC)
+        is_spoiler = bot_settings.get('start_pic_spoiler', False)
+
         reply_markup = InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟs •", callback_data='channels' , style=enums.ButtonStyle.PRIMARY)],
+                [InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟs •", callback_data='channels', style=enums.ButtonStyle.PRIMARY)],
                 [
-                    InlineKeyboardButton("• ᴀʙᴏᴜᴛ", callback_data = "about"),
-                    InlineKeyboardButton("• ʜᴇʟᴘ •", callback_data = "help")
+                    InlineKeyboardButton("• ᴀʙᴏᴜᴛ", callback_data="about"),
+                    InlineKeyboardButton("• ʜᴇʟᴘ •", callback_data="help")
                 ],
                 [
-                    InlineKeyboardButton("⚙️ SETTINGS", callback_data = "cb_settings")
+                    InlineKeyboardButton("⚙️ SETTINGS", callback_data="cb_settings")
                 ]
             ]
         )
-        await message.reply_photo(
-            photo=START_PIC,
-            caption=START_MSG.format(
-                first=message.from_user.first_name,
-                last=message.from_user.last_name,
-                username=None if not message.from_user.username else '@' + message.from_user.username,
-                mention=message.from_user.mention,
-                id=message.from_user.id
-            ),
-            reply_markup=reply_markup,
-            effect_id=int(random.choice(EFFECT_IDS))) 
+        
+        formatted_caption = dyn_start_msg.format(
+            first=message.from_user.first_name,
+            last=message.from_user.last_name if message.from_user.last_name else "",
+            username=None if not message.from_user.username else '@' + message.from_user.username,
+            mention=message.from_user.mention,
+            id=message.from_user.id
+        )
+
+        try:
+            await message.reply_photo(
+                photo=dyn_start_pic,
+                caption=formatted_caption,
+                has_spoiler=is_spoiler,
+                reply_markup=reply_markup,
+                effect_id=int(random.choice(EFFECT_IDS))
+            )
+        except Exception:
+            # Fallback without spoiler if Pyrogram version/server throws an error
+            await message.reply_photo(
+                photo=dyn_start_pic,
+                caption=formatted_caption,
+                reply_markup=reply_markup
+            )
         return
 
 
