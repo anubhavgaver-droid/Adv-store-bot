@@ -4,14 +4,16 @@ import random
 import sys
 import re
 import string 
-import string as rohit
 import time
 import logging
 import traceback
 from datetime import datetime, timedelta
 from pyrogram import Client, filters, __version__, enums
 from pyrogram.enums import ParseMode, ChatAction
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ReplyKeyboardMarkup, ChatInviteLink, ChatPrivileges
+from pyrogram.types import (
+    Message, InlineKeyboardMarkup, InlineKeyboardButton, 
+    CallbackQuery, ReplyKeyboardMarkup, ChatInviteLink, ChatPrivileges
+)
 from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant, MessageNotModified
 from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated, MessageDeleteForbidden
 from bot import Bot
@@ -69,18 +71,19 @@ async def start_command(client: Client, message: Message):
     try:
         await message.react(emoji=random.choice(REACTIONS), big=True)
     except Exception:
-        await message.react(emoji="⚡️", big=True)
-        pass
+        try:
+            await message.react(emoji="⚡️", big=True)
+        except Exception:
+            pass
     
     user_id = message.from_user.id
-    id = message.from_user.id
-    is_premium = await is_premium_user(id)
+    is_premium = await is_premium_user(user_id)
     
     # Add user if not already present
     if not await db.present_user(user_id):
         try:
             await db.add_user(user_id)
-        except:
+        except Exception:
             pass
 
     # ✅ Check Force Subscription First
@@ -101,9 +104,10 @@ async def start_command(client: Client, message: Message):
     FILE_AUTO_DELETE = await db.get_del_timer()
     text = message.text
 
-    # Dynamic Bot Settings Fetching
+    # Dynamic Bot Settings Fetching from Database
     bot_settings = await db.get_bot_settings()
     protect_content_val = bot_settings.get('protect_content', PROTECT_CONTENT)
+    custom_caption_val = bot_settings.get('custom_caption', CUSTOM_CAPTION)
 
     if len(text) > 7:
         try:
@@ -118,7 +122,7 @@ async def start_command(client: Client, message: Message):
         # ----------------------------------------------------------------------
         # DYNAMIC VERIFICATION ENGINE (Database Driven Settings)
         # ----------------------------------------------------------------------
-        verify_status = await db.get_verify_status(id)
+        verify_status = await db.get_verify_status(user_id)
 
         verify_mode = bot_settings.get('verify_mode', True)
         shortlink_url = bot_settings.get('shortlink_url', SHORTLINK_URL)
@@ -137,9 +141,9 @@ async def start_command(client: Client, message: Message):
                 if verify_status['verify_token'] != token:
                     return await message.reply("⚠️ 𝖨nv𝖺ʟɪᴅ 𝗍ᴏᴋᴇɴ. 𝖯ʟᴇᴀ𝗌ᴇ /start 𝖺𝗀αɪɴ.")
 
-                await db.update_verify_status(id, is_verified=True, verified_time=time.time())
-                current = await db.get_verify_count(id)
-                await db.set_verify_count(id, current + 1)
+                await db.update_verify_status(user_id, is_verified=True, verified_time=time.time())
+                current = await db.get_verify_count(user_id)
+                await db.set_verify_count(user_id, current + 1)
 
                 file_id = verify_status.get("link", "")
                 if not file_id:
@@ -155,8 +159,8 @@ async def start_command(client: Client, message: Message):
                 )
 
             if not verify_status['is_verified'] and not is_premium:
-                token = ''.join(random.choices(rohit.ascii_letters + rohit.digits, k=10))
-                await db.update_verify_status(id, verify_token=token, link=base64_string)
+                token = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+                await db.update_verify_status(user_id, verify_token=token, link=base64_string)
                 
                 # Fast Direct Link Generation
                 link = await get_shortlink(shortlink_url, shortlink_api, f'https://t.me/{client.username}?start=verify_{token}')
@@ -173,8 +177,8 @@ async def start_command(client: Client, message: Message):
 
         # Standard Base64 Batch / Single File Hash Processing
         try:
-            string = await decode(base64_string)
-            argument = string.split("-")
+            decoded_str = await decode(base64_string)
+            argument = decoded_str.split("-")
         except Exception as e:
             logger.error(f"Error decoding string {base64_string}: {e}")
             return await message.reply_text("⚠️ **Invalid Link or File Hash!**")
@@ -187,13 +191,14 @@ async def start_command(client: Client, message: Message):
                 end = int(int(argument[2]) / db_channel_id)
                 ids = range(start, end + 1) if start <= end else list(range(start, end - 1, -1))
             except Exception as e:
-                return print(f"Error decoding IDs: {e}")
+                logger.error(f"Error decoding IDs: {e}")
+                return
             
         elif len(argument) == 2:
             try:
                 ids = [int(int(argument[1]) / db_channel_id)]
             except Exception as e:
-                print(f"Error decoding ID: {e}")
+                logger.error(f"Error decoding ID: {e}")
                 return
 
         cancel_tasks[user_id] = False
@@ -209,7 +214,7 @@ async def start_command(client: Client, message: Message):
         except Exception as e:
             await message.reply_text("Something went wrong!")
             try: await temp_msg.delete()
-            except: pass
+            except Exception: pass
             return
 
         codeflix_msgs = []
@@ -224,9 +229,13 @@ async def start_command(client: Client, message: Message):
 
             await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.UPLOAD_DOCUMENT)
 
-            caption = (CUSTOM_CAPTION.format(previouscaption="" if not msg.caption else msg.caption.html, 
-                                             filename=msg.document.file_name) if bool(CUSTOM_CAPTION) and bool(msg.document)
-                       else ("" if not msg.caption else msg.caption.html))
+            # Dynamic Custom Caption Application
+            if bool(custom_caption_val):
+                prev_cap = "" if not msg.caption else msg.caption.html
+                f_name = msg.document.file_name if msg.document and hasattr(msg.document, 'file_name') else ""
+                caption = custom_caption_val.format(previouscaption=prev_cap, filename=f_name)
+            else:
+                caption = "" if not msg.caption else msg.caption.html
 
             reply_markup = msg.reply_markup if DISABLE_CHANNEL_BUTTON else None
 
@@ -251,7 +260,7 @@ async def start_command(client: Client, message: Message):
                     protect_content=protect_content_val
                 )
                 codeflix_msgs.append(copied_msg)
-            except Exception as e:
+            except Exception:
                 pass
 
             await asyncio.sleep(1)
@@ -260,7 +269,7 @@ async def start_command(client: Client, message: Message):
 
         try:
             await temp_msg.delete()
-        except:
+        except Exception:
             pass
 
         if was_cancelled:
@@ -278,7 +287,7 @@ async def start_command(client: Client, message: Message):
                 if snt_msg:
                     try:    
                         await snt_msg.delete()  
-                    except Exception as e:
+                    except Exception:
                         pass
 
             try:
@@ -295,7 +304,7 @@ async def start_command(client: Client, message: Message):
                     "<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!\n\nᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ᴅᴇʟᴇᴛᴇᴅ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ 👇</b>",
                     reply_markup=keyboard
                 )
-            except Exception as e:
+            except Exception:
                 pass
     else:
         try:
@@ -306,8 +315,8 @@ async def start_command(client: Client, message: Message):
             pass  
         
         # 🟢 DYNAMIC START MESSAGE, START PIC & SPOILER (BLUR) FROM DB
-        dyn_start_msg = bot_settings.get('start_msg', START_MSG)
-        dyn_start_pic = bot_settings.get('start_pic', START_PIC)
+        dyn_start_msg = bot_settings.get('start_msg') or START_MSG
+        dyn_start_pic = bot_settings.get('start_pic') or START_PIC
         is_spoiler = bot_settings.get('start_pic_spoiler', False)
 
         reply_markup = InlineKeyboardMarkup(
@@ -323,27 +332,45 @@ async def start_command(client: Client, message: Message):
             ]
         )
         
-        formatted_caption = dyn_start_msg.format(
-            first=message.from_user.first_name,
-            last=message.from_user.last_name if message.from_user.last_name else "",
-            username=None if not message.from_user.username else '@' + message.from_user.username,
-            mention=message.from_user.mention,
-            id=message.from_user.id
-        )
-
         try:
-            await message.reply_photo(
-                photo=dyn_start_pic,
-                caption=formatted_caption,
-                has_spoiler=is_spoiler,
-                reply_markup=reply_markup,
-                effect_id=int(random.choice(EFFECT_IDS))
+            formatted_caption = dyn_start_msg.format(
+                first=message.from_user.first_name,
+                last=message.from_user.last_name if message.from_user.last_name else "",
+                username=f"@{message.from_user.username}" if message.from_user.username else "",
+                mention=message.from_user.mention,
+                id=message.from_user.id
             )
         except Exception:
-            await message.reply_photo(
-                photo=dyn_start_pic,
-                caption=formatted_caption,
-                reply_markup=reply_markup
+            formatted_caption = dyn_start_msg
+
+        # If Photo exists, send Photo else fallback to Text
+        if dyn_start_pic:
+            try:
+                await message.reply_photo(
+                    photo=dyn_start_pic,
+                    caption=formatted_caption,
+                    has_spoiler=is_spoiler,
+                    reply_markup=reply_markup,
+                    effect_id=int(random.choice(EFFECT_IDS))
+                )
+            except Exception:
+                try:
+                    await message.reply_photo(
+                        photo=dyn_start_pic,
+                        caption=formatted_caption,
+                        reply_markup=reply_markup
+                    )
+                except Exception:
+                    await message.reply_text(
+                        text=formatted_caption,
+                        reply_markup=reply_markup,
+                        disable_web_page_preview=True
+                    )
+        else:
+            await message.reply_text(
+                text=formatted_caption,
+                reply_markup=reply_markup,
+                disable_web_page_preview=True
             )
         return
 
@@ -421,24 +448,24 @@ async def cancel_delivery_callback(client: Client, callback_query: CallbackQuery
         target_user_id = int(callback_query.data.split("_")[2])
     except (IndexError, ValueError):
         try: await callback_query.answer()
-        except: pass
+        except Exception: pass
         return
     
     if callback_query.from_user.id != target_user_id:
         try: await callback_query.answer()
-        except: pass
+        except Exception: pass
         return
 
     if cancel_tasks.get(target_user_id, False) is True:
         try: await callback_query.answer()
-        except: pass
+        except Exception: pass
         return
 
     cancel_tasks[target_user_id] = True
     
     try:
         await callback_query.answer()
-    except:
+    except Exception:
         pass
     
     try:
@@ -494,9 +521,9 @@ async def not_joined(client: Client, message: Message):
                     await temp.edit(f"<b>{'! ' * count}</b>")
 
                 except Exception as e:
-                    print(f"Error with chat {chat_id}: {e}")
-                    try: return await temp.edit(f"<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ ᴅᴇᴠᴇʟᴏᴘᴇʀ @rohit_1888</i></b>")
-                    except: return
+                    logger.error(f"Error with chat {chat_id}: {e}")
+                    try: return await temp.edit("<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ ᴅᴇᴠᴇʟᴏᴘᴇʀ @rohit_1888</i></b>")
+                    except Exception: return
 
         try:
             buttons.append([
@@ -512,8 +539,8 @@ async def not_joined(client: Client, message: Message):
             photo=FORCE_PIC,
             caption=FORCE_MSG.format(
                 first=message.from_user.first_name,
-                last=message.from_user.last_name,
-                username=None if not message.from_user.username else '@' + message.from_user.username,
+                last=message.from_user.last_name if message.from_user.last_name else "",
+                username=f"@{message.from_user.username}" if message.from_user.username else "",
                 mention=message.from_user.mention,
                 id=message.from_user.id
             ),
@@ -521,9 +548,9 @@ async def not_joined(client: Client, message: Message):
         )
 
     except Exception as e:
-        print(f"Final Error: {e}")
-        try: await temp.edit(f"<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ ᴅᴇᴠᴇʟᴏᴘᴇʀ...</i></b>")
-        except: pass
+        logger.error(f"Final Error: {e}")
+        try: await temp.edit("<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ ᴅᴇᴠᴇʟᴏᴘᴇʀ...</i></b>")
+        except Exception: pass
 
 
 # ==============================================================================
@@ -537,7 +564,7 @@ async def check_plan(client: Client, message: Message):
 
 
 @Bot.on_message(filters.command('addpremium') & filters.private & admin)
-async def add_premium_user_command(client, msg):
+async def add_premium_user_command(client: Client, msg: Message):
     if len(msg.command) != 4:
         await msg.reply_text(
             "Usage: /addpremium <user_id> <time_value> <time_unit>\n\n"
@@ -567,14 +594,17 @@ async def add_premium_user_command(client, msg):
             f"Expiration Time: `{expiration_time}`"
         )
 
-        await client.send_message(
-            chat_id=user_id,
-            text=(
-                f"🎉 Premium Activated!\n\n"
-                f"You have received premium access for `{time_value} {time_unit}`.\n"
-                f"Expires on: `{expiration_time}`"
-            ),
-        )
+        try:
+            await client.send_message(
+                chat_id=user_id,
+                text=(
+                    f"🎉 Premium Activated!\n\n"
+                    f"You have received premium access for `{time_value} {time_unit}`.\n"
+                    f"Expires on: `{expiration_time}`"
+                ),
+            )
+        except Exception:
+            pass
 
     except ValueError:
         await msg.reply_text("❌ Invalid input. Please ensure user ID and time value are numbers.")
@@ -585,7 +615,7 @@ async def add_premium_user_command(client, msg):
 @Bot.on_message(filters.command('remove_premium') & filters.private & admin)
 async def pre_remove_user(client: Client, msg: Message):
     if len(msg.command) != 2:
-        await msg.reply_text("useage: /remove_premium user_id ")
+        await msg.reply_text("Usage: /remove_premium user_id")
         return
     try:
         user_id = int(msg.command[1])
@@ -596,7 +626,7 @@ async def pre_remove_user(client: Client, msg: Message):
 
 
 @Bot.on_message(filters.command('premium_users') & filters.private & admin)
-async def list_premium_users_command(client, message):
+async def list_premium_users_command(client: Client, message: Message):
     ist = timezone("Asia/Kolkata")
     premium_users_cursor = collection.find({})
     premium_user_list = ['Active Premium Users in database:']
@@ -645,12 +675,12 @@ async def list_premium_users_command(client, message):
 
 
 @Bot.on_message(filters.command("count") & filters.private & admin)
-async def total_verify_count_cmd(client, message: Message):
+async def total_verify_count_cmd(client: Client, message: Message):
     total = await db.get_total_verify_count()
     await message.reply_text(f"Tᴏᴛᴀʟ ᴠᴇʀɪғɪᴇᴅ ᴛᴏᴋᴇɴs ᴛᴏᴅᴀʏ: <b>{total}</b>")
 
 
 @Bot.on_message(filters.command('commands') & filters.private & admin)
 async def bcmd(bot: Bot, message: Message):        
-    reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("• ᴄʟᴏsᴇ •", callback_data = "close")]])
-    await message.reply(text=CMD_TXT, reply_markup = reply_markup, quote=True)
+    reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("• ᴄʟᴏsᴇ •", callback_data="close")]])
+    await message.reply(text=CMD_TXT, reply_markup=reply_markup, quote=True)
