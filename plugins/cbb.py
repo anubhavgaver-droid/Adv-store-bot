@@ -57,7 +57,7 @@ async def cb_handler(client: Bot, query: CallbackQuery):
 
     # ⚙️ SETTINGS BUTTON HANDLER (ONLY FOR ADMIN)
     elif data == "cb_settings":
-        if query.from_user.id not in ADMINS:
+        if query.from_user.id not in OWNER_ID:
             return await query.answer("⚠️ दिस इज ओनली फॉर एडमिन! (This is only for Admin)", show_alert=True)
         await query.answer()
         await send_main_settings_panel(query)
