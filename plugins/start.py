@@ -326,8 +326,8 @@ async def start_command(client: Client, message: Message):
 @Bot.on_callback_query(filters.regex("^cb_settings$"))
 async def cb_settings_handler(client: Client, query: CallbackQuery):
     user_id = query.from_user.id
-    if user_id not in OWNER_ID:
-        return await query.answer("⚠️ दिस इज ओनली फॉर एडमिन! (This is only for Admin)", show_alert=True)
+    if user_id not in ADMINS:
+        return await query.answer("⚠️ This is only for Admin ⚠️", show_alert=True)
     
     await query.answer()
     await send_main_settings_panel(query)
