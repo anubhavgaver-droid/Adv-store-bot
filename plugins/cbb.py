@@ -1,11 +1,6 @@
 #
 # Copyright (C) 2025 by Codeflix-Bots@Github, < https://github.com/Codeflix-Bots >.
 #
-# This file is part of < https://github.com/Codeflix-Bots/FileStore > project,
-# and is released under the MIT License.
-# Please see < https://github.com/Codeflix-Bots/FileStore/blob/master/LICENSE >
-#
-# All rights reserved.
 
 from pyrogram import Client 
 from bot import Bot
@@ -13,6 +8,8 @@ from config import *
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from database.database import *
 from pyrogram import enums
+from admin import send_main_settings_panel  # एडमिन पैनल कॉल करने के लिए
+
 @Bot.on_callback_query()
 async def cb_handler(client: Bot, query: CallbackQuery):
     data = query.data
@@ -46,80 +43,84 @@ async def cb_handler(client: Bot, query: CallbackQuery):
             disable_web_page_preview=True,
             reply_markup=InlineKeyboardMarkup([
                 [
-                    InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟꜱ •", callback_data='channels' ,style=enums.ButtonStyle.PRIMARY)
+                    InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟꜱ •", callback_data='channels', style=enums.ButtonStyle.PRIMARY)
                 ],
                 [
                     InlineKeyboardButton("• ᴀʙᴏᴜᴛ •", callback_data='about'),
                     InlineKeyboardButton("• ʜᴇʟᴘ •", callback_data='help')
+                ],
+                [
+                    InlineKeyboardButton("⚙️ SETTINGS", callback_data='cb_settings')
                 ]
             ])
         )
+
+    # ⚙️ SETTINGS BUTTON HANDLER (ONLY FOR ADMIN)
+    elif data == "cb_settings":
+        if query.from_user.id not in ADMINS:
+            return await query.answer("⚠️ दिस इज ओनली फॉर एडमिन! (This is only for Admin)", show_alert=True)
+        await query.answer()
+        await send_main_settings_panel(query)
 
     elif data == "channels":
         await query.message.edit_text(
             text=CHANNELS_TXT.format(first=query.from_user.first_name),
             disable_web_page_preview=True,
             reply_markup=InlineKeyboardMarkup([
-            # Row 1
-            [
-                InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟꜱ •", url="https://t.me/freestoryhubMR", style=enums.ButtonStyle.PRIMARY)
-            ],
-            # Row 2
-            [
-                InlineKeyboardButton("• ReQeST GrOuP •", url="https://t.me/pratilipifm0900", style=enums.ButtonStyle.PRIMARY)
-            ],
-            # Row 3 (Home aur Close buttons ek sath ek hi line mein)
-            [
-                InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='start'),
-                InlineKeyboardButton('ᴄʟᴏꜱᴇ', callback_data='close', style=enums.ButtonStyle.DANGER)
-            ]
-        ])
+                [
+                    InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟꜱ •", url="https://t.me/freestoryhubMR", style=enums.ButtonStyle.PRIMARY)
+                ],
+                [
+                    InlineKeyboardButton("• ReQeST GrOuP •", url="https://t.me/pratilipifm0900", style=enums.ButtonStyle.PRIMARY)
+                ],
+                [
+                    InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='start'),
+                    InlineKeyboardButton('ᴄʟᴏꜱᴇ', callback_data='close', style=enums.ButtonStyle.DANGER)
+                ]
+            ])
         )
 
-
-# Don't Remove Credit @CodeFlix_Bots, @rohit_1888
-# Ask Doubt on telegram @CodeflixSupport
-#
-# Copyright (C) 2025 by Codeflix-Bots@Github, < https://github.com/Codeflix-Bots >.
-#
-# This file is part of < https://github.com/Codeflix-Bots/FileStore > project,
-# and is released under the MIT License.
-# Please see < https://github.com/Codeflix-Bots/FileStore/blob/master/LICENSE >
-#
-# All rights reserved.
-#
-
-
+    # 💎 DYNAMIC PREMIUM PLAN DISPLAY (FIXED DYNAMIC DB FETCHING)
     elif data == "premium":
         await query.message.delete()
+        
+        # 1. डेटाबेस से लाइव सेटिंग्स निकालें
+        settings = await db.get_bot_settings()
+        plan_text = settings.get('premium_plan_text', None)
+        upi_id = settings.get('upi_id', UPI_ID)
+        qr_pic = settings.get('qr_pic', QR_PIC)
+
+        # 2. अगर DB में नया टेक्स्ट सेट न हो तो डिफ़ॉल्ट दिखाएगा
+        default_text = (
+            f"👋 {query.from_user.mention}\n\n"
+            f"🎖️ <b>Available Plans :</b>\n\n"
+            f"● {PRICE1} For 7 Days Membership\n\n"
+            f"● {PRICE2} For 1 Month Membership\n\n"
+            f"● {PRICE3} For 3 Months Membership\n\n"
+            f"● {PRICE4} For 6 Months Membership\n\n"
+            f"● {PRICE5} For 1 Year Membership\n"
+        )
+
+        final_plan_text = plan_text if (plan_text and plan_text.strip()) else default_text
+
+        caption = (
+            f"{final_plan_text}\n\n"
+            f"💵 <b>UPI ID:</b> <code>{upi_id}</code>\n\n"
+            f"♻️ After Payment You Will Get Instant Membership\n\n"
+            f"‼️ Must Send Screenshot after payment."
+        )
+
         await client.send_photo(
             chat_id=query.message.chat.id,
-            photo=QR_PIC,
-            caption=(
-                f"👋 {query.from_user.username}\n\n"
-                f"🎖️ Available Plans :\n\n"
-                f"● {PRICE1}  For 0 Days Prime Membership\n\n"
-                f"● {PRICE2}  For 1 Month Prime Membership\n\n"
-                f"● {PRICE3}  For 3 Months Prime Membership\n\n"
-                f"● {PRICE4}  For 6 Months Prime Membership\n\n"
-                f"● {PRICE5}  For 1 Year Prime Membership\n\n\n"
-                f"💵 ASK UPI ID TO ADMIN AND PAY THERE -  <code>{UPI_ID}</code>\n\n\n"
-                f"♻️ After Payment You Will Get Instant Membership \n\n\n"
-                f"‼️ Must Send Screenshot after payment & If anyone want custom time membrship then ask admin"
-            ),
+            photo=qr_pic,
+            caption=caption,
             reply_markup=InlineKeyboardMarkup(
                 [
-                    [
-                        InlineKeyboardButton(
-                            "ADMIN 24/7", url=(SCREENSHOT_URL)
-                        )
-                    ],
-                    [InlineKeyboardButton("🔒 Close", callback_data="close")],
+                    [InlineKeyboardButton("ADMIN 24/7", url=SCREENSHOT_URL)],
+                    [InlineKeyboardButton("🔒 Close", callback_data="close")]
                 ]
             )
         )
-
-
 
     elif data == "close":
         await query.message.delete()
@@ -154,7 +155,6 @@ async def cb_handler(client: Bot, query: CallbackQuery):
         await db.set_channel_mode(cid, mode)
         await query.answer(f"Force-Sub set to {'ON' if mode == 'on' else 'OFF'}")
 
-        # Refresh the same channel's mode view
         chat = await client.get_chat(cid)
         status = "🟢 ON" if mode == "on" else "🔴 OFF"
         new_mode = "off" if mode == "on" else "on"
@@ -183,16 +183,3 @@ async def cb_handler(client: Bot, query: CallbackQuery):
             "sᴇʟᴇᴄᴛ ᴀ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴛᴏɢɢʟᴇ ɪᴛs ғᴏʀᴄᴇ-sᴜʙ ᴍᴏᴅᴇ:",
             reply_markup=InlineKeyboardMarkup(buttons)
         )
-
-
-# Don't Remove Credit @CodeFlix_Bots, @rohit_1888
-# Ask Doubt on telegram @CodeflixSupport
-#
-# Copyright (C) 2025 by Codeflix-Bots@Github, < https://github.com/Codeflix-Bots >.
-#
-# This file is part of < https://github.com/Codeflix-Bots/FileStore > project,
-# and is released under the MIT License.
-# Please see < https://github.com/Codeflix-Bots/FileStore/blob/master/LICENSE >
-#
-# All rights reserved.
-#
