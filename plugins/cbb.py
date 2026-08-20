@@ -90,10 +90,17 @@ async def cb_handler(client: Bot, query: CallbackQuery):
             ])
         )
 
-    # 🟢 DYNAMIC START MESSAGE FROM DATABASE
+    # 🟢 DYNAMIC START MESSAGE & PHOTO CHECK FROM DATABASE
     elif data == "start":
         bot_settings = await db.get_bot_settings()
         dyn_start_msg = bot_settings.get('start_msg') or START_MSG
+        
+        # 🟢 केवल DB से फोटो चेक करें (कोई हार्डकोडेड फॉलबैक नहीं)
+        dyn_start_pic = bot_settings.get('start_pic', '')
+        if isinstance(dyn_start_pic, str):
+            dyn_start_pic = dyn_start_pic.strip()
+            if dyn_start_pic.lower() in ["none", "off", "no", "false"]:
+                dyn_start_pic = ""
 
         try:
             caption = dyn_start_msg.format(
@@ -119,11 +126,44 @@ async def cb_handler(client: Bot, query: CallbackQuery):
             ]
         ])
 
-        await safe_edit_text(
-            message=query.message,
-            text=caption,
-            reply_markup=buttons
-        )
+        # अगर DB में फोटो मौजूद है
+        if dyn_start_pic:
+            if query.message.photo:
+                await safe_edit_text(
+                    message=query.message,
+                    text=caption,
+                    reply_markup=buttons
+                )
+            else:
+                try:
+                    await query.message.delete()
+                except Exception:
+                    pass
+                await client.send_photo(
+                    chat_id=query.message.chat.id,
+                    photo=dyn_start_pic,
+                    caption=caption,
+                    reply_markup=buttons
+                )
+        # अगर फोटो डिलीट/खाली है तो केवल टेक्स्ट भेजेगा
+        else:
+            if query.message.photo:
+                try:
+                    await query.message.delete()
+                except Exception:
+                    pass
+                await client.send_message(
+                    chat_id=query.message.chat.id,
+                    text=caption,
+                    reply_markup=buttons,
+                    disable_web_page_preview=True
+                )
+            else:
+                await safe_edit_text(
+                    message=query.message,
+                    text=caption,
+                    reply_markup=buttons
+                )
 
     # ⚙️ SETTINGS BUTTON HANDLER (ONLY FOR ADMIN)
     elif data == "cb_settings":
@@ -160,20 +200,18 @@ async def cb_handler(client: Bot, query: CallbackQuery):
             ])
         )
 
-    # 💎 DYNAMIC PREMIUM PLAN DISPLAY (FIXED DYNAMIC DB FETCHING)
+    # 💎 DYNAMIC PREMIUM PLAN DISPLAY
     elif data == "premium":
         try:
             await query.message.delete()
         except Exception:
             pass
         
-        # 1. डेटाबेस से लाइव सेटिंग्स निकालें
         settings = await db.get_bot_settings()
         plan_text = settings.get('premium_plan_text', None)
         upi_id = settings.get('upi_id', UPI_ID)
-        qr_pic = settings.get('qr_pic', QR_PIC)
+        qr_pic = settings.get('qr_pic', '')
 
-        # 2. अगर DB में नया टेक्स्ट सेट न हो तो डिफ़ॉल्ट दिखाएगा
         default_text = (
             f"👋 {query.from_user.mention}\n\n"
             f"🎖️ <b>Available Plans :</b>\n\n"
