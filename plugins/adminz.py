@@ -57,23 +57,24 @@ async def admin_settings_panel(client: Client, message: Message):
 async def cb_settings_handler(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     if user_id not in ADMINS:
-        return await callback_query.answer("⚠️ This is only for Admin ⚠️", show_alert=True)
+        return await callback_query.answer()
     
+    await callback_query.answer()
     await send_main_settings_panel(callback_query)
 
 
 async def send_main_settings_panel(message_or_query):
     caption = "<b>HERE IS THE SETTINGS MENU</b>\n\n<b>CUSTOMIZE YOUR SETTINGS AS PER YOUR NEED</b>"
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🚀 START SETTINGS", callback_data="panel_start_settings")],
-        [InlineKeyboardButton("💎 PREMIUM PLAN", callback_data="panel_premium")],
-        [InlineKeyboardButton("🪙 TOKEN VERIFICATION", callback_data="panel_verify")],
-        [InlineKeyboardButton("✍️ CUSTOM CAPTION", callback_data="panel_caption")],
-        [InlineKeyboardButton("📢 FORCE SUBSCRIBE PANEL", callback_data="panel_fsub")],
-        [InlineKeyboardButton("🛡️ PROTECT CONTENT", callback_data="panel_protect")],
+        [InlineKeyboardButton("🚀 Sᴛᴀʀᴛ Sᴇᴛᴛɪɴɢs", callback_data="panel_start_settings")],
+        [InlineKeyboardButton("💎 Pʀᴇᴍɪᴜᴍ Pʟᴀɴ", callback_data="panel_premium")],
+        [InlineKeyboardButton("🪙 Tᴏᴋᴇɴ Vᴇʀɪғɪᴄᴀᴛɪᴏɴ", callback_data="panel_verify")],
+        [InlineKeyboardButton("✍️ Cᴜsᴛᴏᴍ Cᴀᴘᴛɪᴏɴ", callback_data="panel_caption")],
+        [InlineKeyboardButton("📢 Fᴏʀᴄᴇ Sᴜʙsᴄʀɪʙᴇ Pᴀɴᴇʟ", callback_data="panel_fsub")],
+        [InlineKeyboardButton("🛡️ Pʀᴏᴛᴇᴄᴛ Cᴏɴᴛᴇɴᴛ", callback_data="panel_protect")],
         [
-            InlineKeyboardButton("ᐸ BACK", callback_data="start"),
-            InlineKeyboardButton("❌ CLOSE", callback_data="close_panel")
+            InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="start"),
+            InlineKeyboardButton("❌ Cʟᴏsᴇ", callback_data="close_panel")
         ]
     ])
     if isinstance(message_or_query, CallbackQuery):
@@ -88,9 +89,10 @@ async def send_main_settings_panel(message_or_query):
 
 @Bot.on_callback_query(filters.regex("^panel_protect$"))
 async def panel_protect(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     settings = await db.get_bot_settings()
     is_protect = settings.get('protect_content', False)
-    status_str = "🟢 ENABLED (FORWARDING OFF)" if is_protect else "🔴 DISABLED (FORWARDING ON)"
+    status_str = "✅ ENABLED (FORWARDING OFF)" if is_protect else "❌ DISABLED (FORWARDING ON)"
 
     caption = (
         "<b>🛡️ PROTECT CONTENT SETTINGS</b>\n\n"
@@ -99,8 +101,8 @@ async def panel_protect(client: Client, callback_query: CallbackQuery):
     )
 
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton(f"🛡️ PROTECT: {'ON ✅' if is_protect else 'OFF ❌'}", callback_data="action_toggle_protect")],
-        [InlineKeyboardButton("ᐸ BACK", callback_data="panel_main")]
+        [InlineKeyboardButton(f"🛡️ Pʀᴏᴛᴇᴄᴛ: {'✅ ON' if is_protect else '❌ OFF'}", callback_data="action_toggle_protect")],
+        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
 
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
@@ -108,13 +110,12 @@ async def panel_protect(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_toggle_protect$"))
 async def action_toggle_protect(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     settings = await db.get_bot_settings()
     current_status = settings.get('protect_content', False)
     new_status = not current_status
 
     await db.update_bot_setting('protect_content', new_status)
-    status_text = "🟢 Protect Content Enabled!" if new_status else "🔴 Protect Content Disabled!"
-    await callback_query.answer(status_text, show_alert=True)
     await panel_protect(client, callback_query)
 
 
@@ -124,25 +125,26 @@ async def action_toggle_protect(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^panel_start_settings$"))
 async def panel_start_settings(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     settings = await db.get_bot_settings()
     start_msg = settings.get('start_msg', START_MSG)
     start_pic = settings.get('start_pic', START_PIC)
     is_spoiler = settings.get('start_pic_spoiler', False)
 
-    spoiler_status = "🟢 BLUR / SPOILER ON" if is_spoiler else "🔴 BLUR / SPOILER OFF"
+    spoiler_status = "✅ Bʟᴜʀ / Sᴘᴏɪʟᴇʀ ON" if is_spoiler else "❌ Bʟᴜʀ / Sᴘᴏɪʟᴇʀ OFF"
 
     caption = (
         "<b>🚀 START SETTINGS MANAGEMENT</b>\n\n"
         f"<b>• Start Pic Link:</b> {start_pic if start_pic else '❌ NOT SET'}\n"
-        f"<b>• Blur (Spoiler) Mode:</b> <code>{spoiler_status}</code>\n\n"
+        f"<b>• Blur (Spoiler) Mode:</b> <code>{'✅ BLUR / SPOILER ON' if is_spoiler else '❌ BLUR / SPOILER OFF'}</code>\n\n"
         f"<b>• Current Start Text:</b>\n<code>{start_msg if start_msg else '❌ NOT SET (DEFAULT WILL BE USED)'}</code>"
     )
 
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✏️ SET START MSG", callback_data="action_set_start_msg"), InlineKeyboardButton("🗑️ DEL MSG", callback_data="action_del_start_msg")],
-        [InlineKeyboardButton("🖼️ SET START PIC", callback_data="action_set_start_pic"), InlineKeyboardButton("🗑️ DEL PIC", callback_data="action_del_start_pic")],
+        [InlineKeyboardButton("✏️ Sᴇᴛ Sᴛᴀʀᴛ M sɢ", callback_data="action_set_start_msg"), InlineKeyboardButton("🗑️ Dᴇʟ M sɢ", callback_data="action_del_start_msg")],
+        [InlineKeyboardButton("🖼️ Sᴇᴛ Sᴛᴀʀᴛ Pɪᴄ", callback_data="action_set_start_pic"), InlineKeyboardButton("🗑️ Dᴇʟ Pɪᴄ", callback_data="action_del_start_pic")],
         [InlineKeyboardButton(f"👁️ {spoiler_status}", callback_data="action_toggle_spoiler")],
-        [InlineKeyboardButton("ᐸ BACK", callback_data="panel_main")]
+        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
 
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
@@ -150,21 +152,21 @@ async def panel_start_settings(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_toggle_spoiler$"))
 async def action_toggle_spoiler(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     settings = await db.get_bot_settings()
     current_status = settings.get('start_pic_spoiler', False)
     new_status = not current_status
     
     await db.update_bot_setting('start_pic_spoiler', new_status)
-    status_text = "🟢 Pic Blur (Spoiler) Turned ON!" if new_status else "🔴 Pic Blur Turned OFF!"
-    await callback_query.answer(status_text, show_alert=True)
     await panel_start_settings(client, callback_query)
 
 
 @Bot.on_callback_query(filters.regex("^action_set_start_msg$"))
 async def action_set_start_msg(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_start_settings")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_start_settings")]])
 
     await client.send_message(
         chat_id=user_id,
@@ -185,16 +187,17 @@ async def action_set_start_msg(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_del_start_msg$"))
 async def action_del_start_msg(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await db.update_bot_setting('start_msg', None)
-    await callback_query.answer("🗑️ Start Message Deleted!", show_alert=True)
     await panel_start_settings(client, callback_query)
 
 
 @Bot.on_callback_query(filters.regex("^action_set_start_pic$"))
 async def action_set_start_pic(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_start_settings")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_start_settings")]])
 
     await client.send_message(
         chat_id=user_id,
@@ -214,8 +217,8 @@ async def action_set_start_pic(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_del_start_pic$"))
 async def action_del_start_pic(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await db.update_bot_setting('start_pic', None)
-    await callback_query.answer("🗑️ Start Photo Deleted!", show_alert=True)
     await panel_start_settings(client, callback_query)
 
 
@@ -225,6 +228,7 @@ async def action_del_start_pic(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^panel_fsub$"))
 async def panel_fsub(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     channels = await db.show_channels()
     buttons = []
 
@@ -233,10 +237,10 @@ async def panel_fsub(client: Client, callback_query: CallbackQuery):
             try:
                 chat = await client.get_chat(ch_id)
                 mode = await db.get_channel_mode(ch_id)
-                status = "🟢 REQ" if mode == "on" else "🔴 NORMAL"
+                status = "✅ Rᴇǫ" if mode == "on" else "❌ Nᴏʀᴍᴀʟ"
                 title = f"{chat.title}"
             except Exception:
-                status = "⚠️ UNKNOWN"
+                status = "⚠️ Uɴᴋɴᴏᴡɴ"
                 title = f"ID: {ch_id}"
             
             buttons.append([
@@ -244,18 +248,17 @@ async def panel_fsub(client: Client, callback_query: CallbackQuery):
                 InlineKeyboardButton("❌", callback_data=f"rem_ch_{ch_id}")
             ])
 
-    buttons.append([InlineKeyboardButton("➕ ADD CHANNEL", callback_data="action_add_fsub")])
-    buttons.append([InlineKeyboardButton("🧹 CLEANUP REQUESTS", callback_data="action_clean_req_menu")])
-    buttons.append([InlineKeyboardButton("🗑️ DELETE ALL CHANNELS", callback_data="action_del_all_fsub")])
-    buttons.append([InlineKeyboardButton("ᐸ BACK", callback_data="panel_main")])
+    buttons.append([InlineKeyboardButton("➕ Aᴅᴅ Cʜᴀɴɴᴇʟ", callback_data="action_add_fsub")])
+    buttons.append([InlineKeyboardButton("🧹 Cʟᴇᴀɴᴜᴘ Rᴇǫᴜᴇsᴛs", callback_data="action_clean_req_menu")])
+    buttons.append([InlineKeyboardButton("🗑️ Dᴇʟᴇᴛᴇ Aʟʟ Cʜᴀɴɴᴇʟs", callback_data="action_del_all_fsub")])
+    buttons.append([InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_main")])
 
     caption = (
         "<b>📢 FORCE SUBSCRIBE MANAGEMENT PANEL</b>\n\n"
         f"<b>TOTAL CHANNELS:</b> <code>{len(channels)}</code>\n\n"
         "<b>• Mode Status:</b>\n"
-        "🟢 REQ = Join Request Force Sub ON\n"
-        "🔴 NORMAL = Direct Join Link ON\n\n"
-        "<i>किसी भी चैनल के मोड को बदलने या हटाने के लिए बटन पर क्लिक करें।</i>"
+        "✅ REQ = Join Request Force Sub ON\n"
+        "❌ NORMAL = Direct Join Link ON\n"
     )
 
     await callback_query.message.edit_text(caption, reply_markup=InlineKeyboardMarkup(buttons), disable_web_page_preview=True)
@@ -263,29 +266,29 @@ async def panel_fsub(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex(r"^toggle_rfs_"))
 async def toggle_rfs_mode_callback(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     ch_id = int(callback_query.data.split("_")[2])
     current_mode = await db.get_channel_mode(ch_id)
     new_mode = "off" if current_mode == "on" else "on"
     
     await db.set_channel_mode(ch_id, new_mode)
-    status_msg = "🟢 Request Mode Turned ON" if new_mode == "on" else "🔴 Normal Join Mode Turned ON"
-    await callback_query.answer(status_msg, show_alert=True)
     await panel_fsub(client, callback_query)
 
 
 @Bot.on_callback_query(filters.regex(r"^rem_ch_"))
 async def handle_dynamic_rem_channel(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     ch_id = int(callback_query.data.split("_")[2])
     await db.rem_channel(ch_id)
-    await callback_query.answer("✅ Channel Removed!", show_alert=True)
     await panel_fsub(client, callback_query)
 
 
 @Bot.on_callback_query(filters.regex("^action_add_fsub$"))
 async def action_add_fsub(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_fsub")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_fsub")]])
 
     await client.send_message(
         chat_id=user_id,
@@ -334,11 +337,12 @@ async def action_add_fsub(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_del_all_fsub$"))
 async def action_del_all_fsub(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     all_channels = await db.show_channels()
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_fsub")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_fsub")]])
 
     if not all_channels:
-        return await callback_query.answer("❌ No Force-Sub Channels found!", show_alert=True)
+        return await callback_query.message.edit_text("❌ **No Force-Sub Channels found!**", reply_markup=back_btn)
 
     for ch_id in all_channels:
         await db.rem_channel(ch_id)
@@ -348,14 +352,15 @@ async def action_del_all_fsub(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_clean_req_menu$"))
 async def action_clean_req_menu(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     channels = await db.show_channels()
     buttons = []
 
     if channels:
         for ch_id in channels:
-            buttons.append([InlineKeyboardButton(f"🧹 Clean ID: {ch_id}", callback_data=f"run_clean_req_{ch_id}")])
+            buttons.append([InlineKeyboardButton(f"🧹 Cʟᴇᴀɴ ID: {ch_id}", callback_data=f"run_clean_req_{ch_id}")])
 
-    buttons.append([InlineKeyboardButton("ᐸ BACK", callback_data="panel_fsub")])
+    buttons.append([InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_fsub")])
     await callback_query.message.edit_text(
         "<b>🧹 SELECT CHANNEL TO CLEAN LEFT/NON-REQUEST USERS:</b>",
         reply_markup=InlineKeyboardMarkup(buttons)
@@ -364,8 +369,9 @@ async def action_clean_req_menu(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex(r"^run_clean_req_"))
 async def run_clean_req_callback(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     channel_id = int(callback_query.data.split("_")[3])
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_fsub")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_fsub")]])
 
     await callback_query.message.edit_text("⏳ **Cleaning up request list... Please wait.**")
 
@@ -408,15 +414,16 @@ async def run_clean_req_callback(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^panel_premium$"))
 async def panel_premium(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     settings = await db.get_bot_settings()
     is_premium_on = settings.get('premium_mode', True)
     upi_id = settings.get('upi_id', UPI_ID)
     qr_pic = settings.get('qr_pic', QR_PIC)
     
     status_btn = (
-        InlineKeyboardButton("🟢 PREMIUM IS ON - ✅", callback_data="action_toggle_premium")
+        InlineKeyboardButton("✅ Pʀᴇᴍɪᴜᴍ I s ON", callback_data="action_toggle_premium")
         if is_premium_on else 
-        InlineKeyboardButton("🔴 PREMIUM IS OFF - ❌", callback_data="action_toggle_premium")
+        InlineKeyboardButton("❌ Pʀᴇᴍɪᴜᴍ I s OFF", callback_data="action_toggle_premium")
     )
 
     caption = (
@@ -427,13 +434,13 @@ async def panel_premium(client: Client, callback_query: CallbackQuery):
     )
 
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📜 PREMIUM PLAN TEXT", callback_data="panel_premium_text")],
-        [InlineKeyboardButton("➕ ADD PREMIUM USER", callback_data="action_add_premium")],
-        [InlineKeyboardButton("➖ REMOVE PREMIUM USER", callback_data="action_remove_premium")],
-        [InlineKeyboardButton("📊 PREMIUM USERS LIST", callback_data="action_premium_list")],
-        [InlineKeyboardButton("💳 SET UPI ID", callback_data="action_set_upi"), InlineKeyboardButton("🖼️ SET QR PIC", callback_data="action_set_qr")],
+        [InlineKeyboardButton("📜 Pʀᴇᴍɪᴜᴍ Pʟᴀɴ Tᴇxᴛ", callback_data="panel_premium_text")],
+        [InlineKeyboardButton("➕ Aᴅᴅ Pʀᴇᴍɪᴜᴍ U sᴇʀ", callback_data="action_add_premium")],
+        [InlineKeyboardButton("➖ Rᴇᴍᴏᴠᴇ Pʀᴇᴍɪᴜᴍ U sᴇʀ", callback_data="action_remove_premium")],
+        [InlineKeyboardButton("📊 Pʀᴇᴍɪᴜᴍ U sᴇʀs Lɪsᴛ", callback_data="action_premium_list")],
+        [InlineKeyboardButton("💳 Sᴇᴛ UPI ID", callback_data="action_set_upi"), InlineKeyboardButton("🖼️ Sᴇᴛ QR Pɪᴄ", callback_data="action_set_qr")],
         [status_btn],
-        [InlineKeyboardButton("ᐸ BACK", callback_data="panel_main")]
+        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
 
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
@@ -441,18 +448,18 @@ async def panel_premium(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_toggle_premium$"))
 async def action_toggle_premium(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     settings = await db.get_bot_settings()
     current_status = settings.get('premium_mode', True)
     new_status = not current_status
     
     await db.update_bot_setting('premium_mode', new_status)
-    status_text = "🟢 Premium Enabled!" if new_status else "🔴 Premium Disabled!"
-    await callback_query.answer(status_text, show_alert=True)
     await panel_premium(client, callback_query)
 
 
 @Bot.on_callback_query(filters.regex("^panel_premium_text$"))
 async def panel_premium_text(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     settings = await db.get_bot_settings()
     plan_text = settings.get('premium_plan_text', None)
 
@@ -477,9 +484,9 @@ async def panel_premium_text(client: Client, callback_query: CallbackQuery):
     )
 
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("SET PREMIUM PLAN TEXT", callback_data="action_set_plan_text")],
-        [InlineKeyboardButton("DELETE PREMIUM PLAN TEXT", callback_data="action_del_plan_text")],
-        [InlineKeyboardButton("ᐸ BACK", callback_data="panel_premium")]
+        [InlineKeyboardButton("Sᴇᴛ Pʀᴇᴍɪᴜᴍ Pʟᴀɴ Tᴇxᴛ", callback_data="action_set_plan_text")],
+        [InlineKeyboardButton("Dᴇʟᴇᴛᴇ Pʀᴇᴍɪᴜᴍ Pʟᴀɴ Tᴇxᴛ", callback_data="action_del_plan_text")],
+        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium")]
     ])
 
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
@@ -487,9 +494,10 @@ async def panel_premium_text(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_set_plan_text$"))
 async def action_set_plan_text(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_premium_text")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium_text")]])
 
     await client.send_message(
         chat_id=user_id,
@@ -510,16 +518,17 @@ async def action_set_plan_text(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_del_plan_text$"))
 async def action_del_plan_text(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await db.update_bot_setting('premium_plan_text', "")
-    await callback_query.answer("🗑 Premium Plan Text Deleted!", show_alert=True)
     await panel_premium_text(client, callback_query)
 
 
 @Bot.on_callback_query(filters.regex("^action_add_premium$"))
 async def action_add_premium(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_premium")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium")]])
 
     await client.send_message(
         chat_id=user_id,
@@ -583,9 +592,10 @@ async def action_add_premium(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_remove_premium$"))
 async def action_remove_premium(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_premium")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium")]])
 
     await client.send_message(
         chat_id=user_id,
@@ -609,10 +619,10 @@ async def action_remove_premium(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_premium_list$"))
 async def action_premium_list(client: Client, callback_query: CallbackQuery):
-    await callback_query.answer("SENDING PREMIUM USERS LIST FILE IN SOME SECONDS", show_alert=True)
+    await callback_query.answer()
     
-    close_btn = InlineKeyboardMarkup([[InlineKeyboardButton("❌ CLOSE", callback_data="close_panel")]])
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_premium")]])
+    close_btn = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cʟᴏsᴇ", callback_data="close_panel")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium")]])
 
     ist = timezone("Asia/Kolkata")
     current_time = datetime.now(ist)
@@ -682,9 +692,10 @@ async def action_premium_list(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_set_upi$"))
 async def action_set_upi(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_premium")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium")]])
 
     await client.send_message(
         chat_id=user_id,
@@ -704,9 +715,10 @@ async def action_set_upi(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_set_qr$"))
 async def action_set_qr(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_premium")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_premium")]])
 
     await client.send_message(
         chat_id=user_id,
@@ -730,40 +742,47 @@ async def action_set_qr(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^panel_verify$"))
 async def panel_verify(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     settings = await db.get_bot_settings()
     verify_mode = settings.get('verify_mode', True)
-    status_icon = "✅" if verify_mode else "❌"
+    status_btn = (
+        InlineKeyboardButton("✅ Vᴇʀɪғʏ I s ON", callback_data="action_toggle_verify")
+        if verify_mode else 
+        InlineKeyboardButton("❌ Vᴇʀɪғʏ I s OFF", callback_data="action_toggle_verify")
+    )
 
     caption = "<b>MANAGE YOUR TOKEN VERIFICATION SETTINGS FROM HERE GIVEN BELOW BUTTONS</b>"
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("⚠️ VERIFY SHORTNER", callback_data="panel_shortener")],
-        [InlineKeyboardButton("🪪 VERIFY TUTORIAL", callback_data="action_set_tut")],
-        [InlineKeyboardButton("⏰ VERIFY TIME", callback_data="action_set_verify_time")],
-        [InlineKeyboardButton(f"🟢 VERIFY IS ON - {status_icon}", callback_data="action_toggle_verify")],
-        [InlineKeyboardButton("ᐸ BACK", callback_data="panel_main")]
+        [InlineKeyboardButton("⚠️ Vᴇʀɪғʏ Sʜᴏʀᴛɴᴇʀ", callback_data="panel_shortener")],
+        [InlineKeyboardButton("🪪 Vᴇʀɪғʏ Tᴜᴛᴏʀɪᴀʟ", callback_data="action_set_tut")],
+        [InlineKeyboardButton("⏰ Vᴇʀɪғʏ Tɪᴍᴇ", callback_data="action_set_verify_time")],
+        [status_btn],
+        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
 
 
 @Bot.on_callback_query(filters.regex("^panel_shortener$"))
 async def panel_shortener(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     settings = await db.get_bot_settings()
     short_url = settings.get('shortlink_url', SHORTLINK_URL)
     short_api = settings.get('shortlink_api', SHORTLINK_API)
 
     caption = f"<b>HERE YOU CAN MANAGE YOUR BOT VERIFY SHORTLINK</b>\n\n<b>URL -</b> {short_url}\n<b>API -</b> {short_api}"
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("SET SHORTLINK", callback_data="action_set_shortlink"), InlineKeyboardButton("DELETE SHORTLINK", callback_data="action_del_shortlink")],
-        [InlineKeyboardButton("ᐸ BACK", callback_data="panel_verify")]
+        [InlineKeyboardButton("Sᴇᴛ Sʜᴏʀᴛʟɪɴᴋ", callback_data="action_set_shortlink"), InlineKeyboardButton("Dᴇʟᴇᴛᴇ Sʜᴏʀᴛʟɪɴᴋ", callback_data="action_del_shortlink")],
+        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_verify")]
     ])
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
 
 
 @Bot.on_callback_query(filters.regex("^action_set_shortlink$"))
 async def action_set_shortlink(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_shortener")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_shortener")]])
 
     msg1 = await client.send_message(
         chat_id=user_id,
@@ -795,26 +814,27 @@ async def action_set_shortlink(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_del_shortlink$"))
 async def action_del_shortlink(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await db.update_bot_setting('shortlink_url', "")
     await db.update_bot_setting('shortlink_api', "")
-    await callback_query.answer("🗑 Shortlink deleted!", show_alert=True)
     await panel_shortener(client, callback_query)
 
 
 @Bot.on_callback_query(filters.regex("^action_toggle_verify$"))
 async def action_toggle_verify(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     settings = await db.get_bot_settings()
     current_status = settings.get('verify_mode', True)
     await db.update_bot_setting('verify_mode', not current_status)
-    await callback_query.answer(f"Verification turned {'OFF' if current_status else 'ON'}")
     await panel_verify(client, callback_query)
 
 
 @Bot.on_callback_query(filters.regex("^action_set_tut$"))
 async def action_set_tut(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_verify")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_verify")]])
 
     await client.send_message(
         chat_id=user_id,
@@ -834,9 +854,10 @@ async def action_set_tut(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_set_verify_time$"))
 async def action_set_verify_time(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_verify")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_verify")]])
 
     await client.send_message(
         chat_id=user_id,
@@ -863,22 +884,24 @@ async def action_set_verify_time(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^panel_caption$"))
 async def panel_caption(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     settings = await db.get_bot_settings()
     current_cap = settings.get('custom_caption', CUSTOM_CAPTION)
 
     caption = f"<b>✍️ CUSTOM CAPTION SETTINGS</b>\n\n<b>CURRENT CAPTION:</b>\n<code>{current_cap if current_cap else 'Disabled'}</code>"
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✏️ SET CAPTION", callback_data="action_set_caption"), InlineKeyboardButton("🗑️ DELETE CAPTION", callback_data="action_del_caption")],
-        [InlineKeyboardButton("ᐸ BACK", callback_data="panel_main")]
+        [InlineKeyboardButton("✏️ Sᴇᴛ Cᴀᴘᴛɪᴏɴ", callback_data="action_set_caption"), InlineKeyboardButton("🗑️ Dᴇʟᴇᴛᴇ Cᴀᴘᴛɪᴏɴ", callback_data="action_del_caption")],
+        [InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
     await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
 
 
 @Bot.on_callback_query(filters.regex("^action_set_caption$"))
 async def action_set_caption(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await callback_query.message.delete()
     user_id = callback_query.from_user.id
-    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ BACK", callback_data="panel_caption")]])
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("ᐸ Bᴀᴄᴋ", callback_data="panel_caption")]])
 
     await client.send_message(
         chat_id=user_id,
@@ -898,8 +921,8 @@ async def action_set_caption(client: Client, callback_query: CallbackQuery):
 
 @Bot.on_callback_query(filters.regex("^action_del_caption$"))
 async def action_del_caption(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await db.update_bot_setting('custom_caption', "")
-    await callback_query.answer("🗑 Caption cleared!", show_alert=True)
     await panel_caption(client, callback_query)
 
 
@@ -919,12 +942,12 @@ async def change_force_sub_mode_cmd(client: Client, message: Message):
         try:
             chat = await client.get_chat(ch_id)
             mode = await db.get_channel_mode(ch_id)
-            status = "🟢" if mode == "on" else "🔴"
+            status = "✅" if mode == "on" else "❌"
             buttons.append([InlineKeyboardButton(f"{status} {chat.title}", callback_data=f"toggle_rfs_{ch_id}")])
         except Exception:
             buttons.append([InlineKeyboardButton(f"⚠️ {ch_id}", callback_data=f"toggle_rfs_{ch_id}")])
 
-    buttons.append([InlineKeyboardButton("Close ✖️", callback_data="close_panel")])
+    buttons.append([InlineKeyboardButton("Cʟᴏsᴇ ✖️", callback_data="close_panel")])
     await temp.edit("<b>Select channel to toggle Request Mode:</b>", reply_markup=InlineKeyboardMarkup(buttons))
 
 
@@ -974,7 +997,7 @@ async def list_force_sub_channels_cmd(client: Client, message: Message):
         try:
             chat = await client.get_chat(ch_id)
             mode = await db.get_channel_mode(ch_id)
-            m_icon = "🟢 REQ" if mode == "on" else "🔴 NORMAL"
+            m_icon = "✅ REQ" if mode == "on" else "❌ NORMAL"
             res += f"• <b>{chat.title}</b> [<code>{ch_id}</code>] - {m_icon}\n"
         except Exception:
             res += f"• <code>{ch_id}</code> (Unavailable)\n"
@@ -1018,9 +1041,11 @@ async def delete_requested_users_cmd(client: Client, message: Message):
 
 @Bot.on_callback_query(filters.regex("^panel_main$"))
 async def panel_main(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await send_main_settings_panel(callback_query)
 
 
 @Bot.on_callback_query(filters.regex("^close_panel$"))
 async def close_panel(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
     await callback_query.message.delete()
