@@ -63,10 +63,10 @@ async def cb_handler(client: Bot, query: CallbackQuery):
 
         await safe_edit_text(
             message=query.message,
-            text=text,
+            text=f"<blockquote>{text}</blockquote>",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='start'),
-                 InlineKeyboardButton("ᴄʟᴏꜱᴇ", callback_data='close')]
+                [InlineKeyboardButton('Hᴏᴍᴇ', callback_data='start'),
+                 InlineKeyboardButton("Cʟᴏsᴇ", callback_data='close')]
             ])
         )
 
@@ -83,10 +83,10 @@ async def cb_handler(client: Bot, query: CallbackQuery):
 
         await safe_edit_text(
             message=query.message,
-            text=text,
+            text=f"<blockquote>{text}</blockquote>",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='start'),
-                 InlineKeyboardButton('ᴄʟᴏꜱᴇ', callback_data='close')]
+                [InlineKeyboardButton('Hᴏᴍᴇ', callback_data='start'),
+                 InlineKeyboardButton('Cʟᴏsᴇ', callback_data='close')]
             ])
         )
 
@@ -95,7 +95,7 @@ async def cb_handler(client: Bot, query: CallbackQuery):
         bot_settings = await db.get_bot_settings()
         dyn_start_msg = bot_settings.get('start_msg') or START_MSG
         
-        # 🟢 केवल DB से फोटो चेक करें (कोई हार्डकोडेड फॉलबैक नहीं)
+        # 🟢 Check photo from DB
         dyn_start_pic = bot_settings.get('start_pic', '')
         if isinstance(dyn_start_pic, str):
             dyn_start_pic = dyn_start_pic.strip()
@@ -113,20 +113,22 @@ async def cb_handler(client: Bot, query: CallbackQuery):
         except Exception:
             caption = dyn_start_msg
 
+        caption = f"<blockquote>{caption}</blockquote>"
+
         buttons = InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟꜱ •", callback_data='channels', style=enums.ButtonStyle.PRIMARY)
+                InlineKeyboardButton("• Cʜᴀɴɴᴇʟs •", callback_data='channels', style=enums.ButtonStyle.PRIMARY)
             ],
             [
-                InlineKeyboardButton("• ᴀʙᴏᴜᴛ •", callback_data='about'),
-                InlineKeyboardButton("• ʜᴇʟᴘ •", callback_data='help')
+                InlineKeyboardButton("• Aʙᴏᴜᴛ •", callback_data='about'),
+                InlineKeyboardButton("• Hᴇʟᴘ •", callback_data='help')
             ],
             [
-                InlineKeyboardButton("⚙️ SETTINGS", callback_data='cb_settings')
+                InlineKeyboardButton("⚙️ Sᴇᴛᴛɪɴɢs", callback_data='cb_settings')
             ]
         ])
 
-        # अगर DB में फोटो मौजूद है
+        # Photo available in DB
         if dyn_start_pic:
             if query.message.photo:
                 await safe_edit_text(
@@ -145,7 +147,7 @@ async def cb_handler(client: Bot, query: CallbackQuery):
                     caption=caption,
                     reply_markup=buttons
                 )
-        # अगर फोटो डिलीट/खाली है तो केवल टेक्स्ट भेजेगा
+        # Send text only if photo deleted or empty
         else:
             if query.message.photo:
                 try:
@@ -168,7 +170,7 @@ async def cb_handler(client: Bot, query: CallbackQuery):
     # ⚙️ SETTINGS BUTTON HANDLER (ONLY FOR ADMIN)
     elif data == "cb_settings":
         if query.from_user.id not in ADMINS:
-            return await query.answer("⚠️ This is only for Admin ⚠️", show_alert=True)
+            return await query.answer("⚠️ Tʜɪs Is Oɴʟʏ Fᴏʀ Aᴅᴍɪɴs ⚠️", show_alert=True)
         await query.answer()
         await send_main_settings_panel(query)
 
@@ -185,17 +187,17 @@ async def cb_handler(client: Bot, query: CallbackQuery):
 
         await safe_edit_text(
             message=query.message,
-            text=text,
+            text=f"<blockquote>{text}</blockquote>",
             reply_markup=InlineKeyboardMarkup([
                 [
-                    InlineKeyboardButton("• ᴄʜᴀɴɴᴇʟꜱ •", url="https://t.me/freestoryhubMR", style=enums.ButtonStyle.PRIMARY)
+                    InlineKeyboardButton("• Cʜᴀɴɴᴇʟs •", url="https://t.me/freestoryhubMR", style=enums.ButtonStyle.PRIMARY)
                 ],
                 [
-                    InlineKeyboardButton("• ReQeST GrOuP •", url="https://t.me/pratilipifm0900", style=enums.ButtonStyle.PRIMARY)
+                    InlineKeyboardButton("• Rᴇǫᴜᴇsᴛ Gʀᴏᴜᴘ •", url="https://t.me/pratilipifm0900", style=enums.ButtonStyle.PRIMARY)
                 ],
                 [
-                    InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='start'),
-                    InlineKeyboardButton('ᴄʟᴏꜱᴇ', callback_data='close', style=enums.ButtonStyle.DANGER)
+                    InlineKeyboardButton('Hᴏᴍᴇ', callback_data='start'),
+                    InlineKeyboardButton('Cʟᴏsᴇ', callback_data='close', style=enums.ButtonStyle.DANGER)
                 ]
             ])
         )
@@ -214,26 +216,26 @@ async def cb_handler(client: Bot, query: CallbackQuery):
 
         default_text = (
             f"👋 {query.from_user.mention}\n\n"
-            f"🎖️ <b>Available Plans :</b>\n\n"
-            f"● {PRICE1} For 7 Days Membership\n\n"
-            f"● {PRICE2} For 1 Month Membership\n\n"
-            f"● {PRICE3} For 3 Months Membership\n\n"
-            f"● {PRICE4} For 6 Months Membership\n\n"
-            f"● {PRICE5} For 1 Year Membership\n"
+            f"🎖️ <b>Aᴠᴀɪʟᴀʙʟᴇ Pʟᴀɴs :</b>\n\n"
+            f"● {PRICE1} Fᴏʀ 7 Dᴀʏs Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
+            f"● {PRICE2} Fᴏʀ 1 Mᴏɴᴛʜ Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
+            f"● {PRICE3} Fᴏʀ 3 Mᴏɴᴛʜs Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
+            f"● {PRICE4} Fᴏʀ 6 Mᴏɴᴛʜs Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
+            f"● {PRICE5} Fᴏʀ 1 Yᴇᴀʀ Mᴇᴍʙᴇʀsʜɪᴘ\n"
         )
 
         final_plan_text = plan_text if (plan_text and plan_text.strip()) else default_text
 
         caption = (
-            f"{final_plan_text}\n\n"
+            f"<blockquote>{final_plan_text}\n\n"
             f"💵 <b>UPI ID:</b> <code>{upi_id}</code>\n\n"
-            f"♻️ After Payment You Will Get Instant Membership\n\n"
-            f"‼️ Must Send Screenshot after payment."
+            f"♻️ Aғᴛᴇʀ Pᴀʏᴍᴇɴᴛ Yᴏᴜ Wɪʟʟ Gᴇᴛ Iɴsᴛᴀɴᴛ Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
+            f"‼️ Mᴜsᴛ Sᴇɴᴅ Sᴄʀᴇᴇɴsʜᴏᴛ Aғᴛᴇʀ Pᴀʏᴍᴇɴᴛ.</blockquote>"
         )
 
         reply_markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("ADMIN 24/7", url=SCREENSHOT_URL)],
-            [InlineKeyboardButton("🔒 Close", callback_data="close")]
+            [InlineKeyboardButton("Aᴅᴍɪɴ 24/7", url=SCREENSHOT_URL)],
+            [InlineKeyboardButton("🔒 Cʟᴏsᴇ", callback_data="close")]
         ])
 
         if qr_pic:
@@ -275,20 +277,20 @@ async def cb_handler(client: Bot, query: CallbackQuery):
         try:
             chat = await client.get_chat(cid)
             mode = await db.get_channel_mode(cid)
-            status = "🟢 ᴏɴ" if mode == "on" else "🔴 ᴏғғ"
-            new_mode = "ᴏғғ" if mode == "on" else "on"
+            status = "🟢 Oɴ" if mode == "on" else "🔴 Oғғ"
+            new_mode = "off" if mode == "on" else "on"
             buttons = [
-                [InlineKeyboardButton(f"ʀᴇǫ ᴍᴏᴅᴇ {'OFF' if mode == 'on' else 'ON'}", callback_data=f"rfs_toggle_{cid}_{new_mode}")],
-                [InlineKeyboardButton("‹ ʙᴀᴄᴋ", callback_data="fsub_back")]
+                [InlineKeyboardButton(f"Rᴇǫ Mᴏᴅᴇ {'OFF' if mode == 'on' else 'ON'}", callback_data=f"rfs_toggle_{cid}_{new_mode}")],
+                [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="fsub_back")]
             ]
             await safe_edit_text(
                 message=query.message,
-                text=f"Channel: {chat.title}\nCurrent Force-Sub Mode: {status}",
+                text=f"<blockquote><b>Cʜᴀɴɴᴇʟ:</b> {chat.title}\n<b>Cᴜʀʀᴇɴᴛ Fᴏʀᴄᴇ-Sᴜʙ Mᴏᴅᴇ:</b> {status}</blockquote>",
                 reply_markup=InlineKeyboardMarkup(buttons)
             )
         except Exception as e:
             logger.error(f"Error fetching channel info: {e}")
-            await query.answer("Failed to fetch channel info", show_alert=True)
+            await query.answer("Fᴀɪʟᴇᴅ Tᴏ Fᴇᴛᴄʜ Cʜᴀɴɴᴇʟ Iɴғᴏ", show_alert=True)
 
     elif data.startswith("rfs_toggle_"):
         cid, action = data.split("_")[2:]
@@ -296,19 +298,19 @@ async def cb_handler(client: Bot, query: CallbackQuery):
         mode = "on" if action == "on" else "off"
 
         await db.set_channel_mode(cid, mode)
-        await query.answer(f"Force-Sub set to {'ON' if mode == 'on' else 'OFF'}")
+        await query.answer(f"Fᴏʀᴄᴇ-Sᴜʙ sᴇᴛ ᴛᴏ {'ON' if mode == 'on' else 'OFF'}")
 
         try:
             chat = await client.get_chat(cid)
-            status = "🟢 ON" if mode == "on" else "🔴 OFF"
+            status = "🟢 Oɴ" if mode == "on" else "🔴 Oғғ"
             new_mode = "off" if mode == "on" else "on"
             buttons = [
-                [InlineKeyboardButton(f"ʀᴇǫ ᴍᴏᴅᴇ {'OFF' if mode == 'on' else 'ON'}", callback_data=f"rfs_toggle_{cid}_{new_mode}")],
-                [InlineKeyboardButton("‹ ʙᴀᴄᴋ", callback_data="fsub_back")]
+                [InlineKeyboardButton(f"Rᴇǫ Mᴏᴅᴇ {'OFF' if mode == 'on' else 'ON'}", callback_data=f"rfs_toggle_{cid}_{new_mode}")],
+                [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="fsub_back")]
             ]
             await safe_edit_text(
                 message=query.message,
-                text=f"Channel: {chat.title}\nCurrent Force-Sub Mode: {status}",
+                text=f"<blockquote><b>Cʜᴀɴɴᴇʟ:</b> {chat.title}\n<b>Cᴜʀʀᴇɴᴛ Fᴏʀᴄᴇ-Sᴜʙ Mᴏᴅᴇ:</b> {status}</blockquote>",
                 reply_markup=InlineKeyboardMarkup(buttons)
             )
         except Exception as e:
@@ -328,6 +330,6 @@ async def cb_handler(client: Bot, query: CallbackQuery):
 
         await safe_edit_text(
             message=query.message,
-            text="sᴇʟᴇᴄᴛ ᴀ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴛᴏɢɢʟᴇ ɪᴛs ғᴏʀᴄᴇ-sᴜʙ ᴍᴏᴅᴇ:",
+            text="<blockquote>Sᴇʟᴇᴄᴛ A Cʜᴀɴɴᴇʟ Tᴏ Tᴏɢɢʟᴇ Iᴛs Fᴏʀᴄᴇ-Sᴜʙ Mᴏᴅᴇ:</blockquote>",
             reply_markup=InlineKeyboardMarkup(buttons)
         )
