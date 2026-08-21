@@ -129,7 +129,7 @@ async def start_command(client: Client, message: Message):
         shortlink_api = bot_settings.get('shortlink_api', SHORTLINK_API)
         tut_vid = bot_settings.get('tut_vid', TUT_VID)
         verify_expire = bot_settings.get('verify_expire', VERIFY_EXPIRE)
-        render_domain = bot_settings.get('render_domain', "https://your-app.onrender.com")
+        render_domain = bot_settings.get('render_domain', "https://anubhavvgani.onrender.com")
 
         # Sync Shortener Settings to MongoDB for Render Middleware Access
         try:
