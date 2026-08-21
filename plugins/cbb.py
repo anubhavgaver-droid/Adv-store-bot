@@ -4,7 +4,7 @@
 
 import logging
 from pyrogram import Client, enums
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaPhoto
 from pyrogram.errors import MessageNotModified, FloodWait
 from bot import Bot
 from config import *
@@ -204,11 +204,6 @@ async def cb_handler(client: Bot, query: CallbackQuery):
 
     # 💎 DYNAMIC PREMIUM PLAN DISPLAY
     elif data == "premium":
-        try:
-            await query.message.delete()
-        except Exception:
-            pass
-        
         settings = await db.get_bot_settings()
         plan_text = settings.get('premium_plan_text', None)
         upi_id = settings.get('upi_id', UPI_ID)
@@ -216,11 +211,11 @@ async def cb_handler(client: Bot, query: CallbackQuery):
 
         default_text = (
             f"👋 {query.from_user.mention}\n\n"
-            f"🎖️ <b>Aᴠᴀɪʟᴀʙʟᴇ Pʟᴀɴs :</b>\n\n"
+            f"🎖️ <b>AᴠᴀɪʟᴀʙʟE Pʟᴀɴs :</b>\n\n"
             f"● {PRICE1} Fᴏʀ 7 Dᴀʏs Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
             f"● {PRICE2} Fᴏʀ 1 Mᴏɴᴛʜ Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
             f"● {PRICE3} Fᴏʀ 3 Mᴏɴᴛʜs Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
-            f"● {PRICE4} Fᴏʀ 6 Mᴏɴᴛʜs Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
+            f"● {PRICE4} Fᴏʀ 6 Mᴏɴᴛʜs MᴇᴍʙᴇR sʜɪᴘ\n\n"
             f"● {PRICE5} Fᴏʀ 1 Yᴇᴀʀ Mᴇᴍʙᴇʀsʜɪᴘ\n"
         )
 
@@ -230,35 +225,31 @@ async def cb_handler(client: Bot, query: CallbackQuery):
             f"<blockquote>{final_plan_text}\n\n"
             f"💵 <b>UPI ID:</b> <code>{upi_id}</code>\n\n"
             f"♻️ Aғᴛᴇʀ Pᴀʏᴍᴇɴᴛ Yᴏᴜ Wɪʟʟ Gᴇᴛ Iɴsᴛᴀɴᴛ Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
-            f"‼️ Mᴜsᴛ Sᴇɴᴅ Sᴄʀᴇᴇɴsʜᴏᴛ Aғᴛᴇʀ Pᴀʏᴍᴇɴᴛ.</blockquote>"
+            f"‼️ Mᴜsᴛ Sᴇɴᴅ Sᴄʀᴇᴇɴsʜᴏᴛ AғᴛᴇR Pᴀʏᴍᴇɴᴛ.</blockquote>"
         )
 
         reply_markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("Aᴅᴍɪɴ 24/7", url=SCREENSHOT_URL)],
-            [InlineKeyboardButton("🔒 Cʟᴏsᴇ", callback_data="close")]
+            [InlineKeyboardButton("🔒 CʟᴏsE", callback_data="close")]
         ])
 
         if qr_pic:
             try:
-                await client.send_photo(
-                    chat_id=query.message.chat.id,
-                    photo=qr_pic,
-                    caption=caption,
+                await query.message.edit_media(
+                    media=InputMediaPhoto(qr_pic, caption=caption),
                     reply_markup=reply_markup
                 )
             except Exception:
-                await client.send_message(
-                    chat_id=query.message.chat.id,
+                await safe_edit_text(
+                    message=query.message,
                     text=caption,
-                    reply_markup=reply_markup,
-                    disable_web_page_preview=True
+                    reply_markup=reply_markup
                 )
         else:
-            await client.send_message(
-                chat_id=query.message.chat.id,
+            await safe_edit_text(
+                message=query.message,
                 text=caption,
-                reply_markup=reply_markup,
-                disable_web_page_preview=True
+                reply_markup=reply_markup
             )
 
     elif data == "close":
