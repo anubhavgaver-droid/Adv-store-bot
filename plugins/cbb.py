@@ -202,7 +202,7 @@ async def cb_handler(client: Bot, query: CallbackQuery):
             ])
         )
 
-    # 💎 DYNAMIC PREMIUM PLAN DISPLAY
+    # 💎 DYNAMIC PREMIUM PLAN DISPLAY (REPLY WITH NEW MESSAGE)
     elif data == "premium":
         settings = await db.get_bot_settings()
         plan_text = settings.get('premium_plan_text', None)
@@ -211,11 +211,11 @@ async def cb_handler(client: Bot, query: CallbackQuery):
 
         default_text = (
             f"👋 {query.from_user.mention}\n\n"
-            f"🎖️ <b>AᴠᴀɪʟᴀʙʟE Pʟᴀɴs :</b>\n\n"
+            f"🎖️ <b>Aᴠᴀɪʟᴀʙʟᴇ Pʟᴀɴs :</b>\n\n"
             f"● {PRICE1} Fᴏʀ 7 Dᴀʏs Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
             f"● {PRICE2} Fᴏʀ 1 Mᴏɴᴛʜ Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
             f"● {PRICE3} Fᴏʀ 3 Mᴏɴᴛʜs Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
-            f"● {PRICE4} Fᴏʀ 6 Mᴏɴᴛʜs MᴇᴍʙᴇR sʜɪᴘ\n\n"
+            f"● {PRICE4} Fᴏʀ 6 Mᴏɴᴛʜs Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
             f"● {PRICE5} Fᴏʀ 1 Yᴇᴀʀ Mᴇᴍʙᴇʀsʜɪᴘ\n"
         )
 
@@ -224,32 +224,33 @@ async def cb_handler(client: Bot, query: CallbackQuery):
         caption = (
             f"<blockquote>{final_plan_text}\n\n"
             f"💵 <b>UPI ID:</b> <code>{upi_id}</code>\n\n"
-            f"♻️ Aғᴛᴇʀ Pᴀʏᴍᴇɴᴛ Yᴏᴜ Wɪʟʟ Gᴇᴛ Iɴsᴛᴀɴᴛ Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
-            f"‼️ Mᴜsᴛ Sᴇɴᴅ Sᴄʀᴇᴇɴsʜᴏᴛ AғᴛᴇR Pᴀʏᴍᴇɴᴛ.</blockquote>"
+            f"♻️ AғᴛᴇR Pᴀʏᴍᴇɴᴛ Yᴏᴜ Wɪʟʟ Gᴇᴛ Iɴsᴛᴀɴᴛ Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
+            f"‼️ Mᴜsᴛ Sᴇɴᴅ Sᴄʀᴇᴇɴsʜᴏᴛ Aғᴛᴇʀ Pᴀʏᴍᴇɴᴛ.</blockquote>"
         )
 
         reply_markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("Aᴅᴍɪɴ 24/7", url=SCREENSHOT_URL)],
-            [InlineKeyboardButton("🔒 CʟᴏsE", callback_data="close")]
+            [InlineKeyboardButton("🔒 Cʟᴏsᴇ", callback_data="close")]
         ])
 
         if qr_pic:
             try:
-                await query.message.edit_media(
-                    media=InputMediaPhoto(qr_pic, caption=caption),
+                await query.message.reply_photo(
+                    photo=qr_pic,
+                    caption=caption,
                     reply_markup=reply_markup
                 )
             except Exception:
-                await safe_edit_text(
-                    message=query.message,
+                await query.message.reply_text(
                     text=caption,
-                    reply_markup=reply_markup
+                    reply_markup=reply_markup,
+                    disable_web_page_preview=True
                 )
         else:
-            await safe_edit_text(
-                message=query.message,
+            await query.message.reply_text(
                 text=caption,
-                reply_markup=reply_markup
+                reply_markup=reply_markup,
+                disable_web_page_preview=True
             )
 
     elif data == "close":
