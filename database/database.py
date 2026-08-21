@@ -14,8 +14,9 @@ from config import (
     QR_PIC
 )
 
-# Optional config fallback
+# Optional config fallbacks
 PROTECT_CONTENT = getattr(config, 'PROTECT_CONTENT', False)
+BOT_USERNAME = getattr(config, 'BOT_USERNAME', 'SmartfilestorebyAcbot')
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ class Rohit:
         self.rqst_fsub_Channel_data = self.database['request_forcesub_channel']
         self.multi_batches = self.database['multi_batches']
         self.settings_col = self.database['settings']
+        self.verify_tokens = self.database['verify_tokens'] # Added explicit token collection
 
     # ================= USER DATA =================
     async def present_user(self, user_id: int) -> bool:
@@ -191,6 +193,15 @@ class Rohit:
         return channel_id in channel_ids
 
     # ================= VERIFICATION MANAGEMENT =================
+    async def save_verify_token(self, user_id: int, token: str):
+        """Saves dynamic verification token for Node.js proxy consumption"""
+        await self.verify_tokens.delete_many({'user_id': user_id})
+        await self.verify_tokens.insert_one({
+            'user_id': user_id,
+            'token': token,
+            'is_used': False
+        })
+
     async def db_verify_status(self, user_id: int) -> dict:
         user = await self.user_data.find_one({'_id': user_id})
         return user.get('verify_status', default_verify) if user else default_verify
@@ -259,7 +270,8 @@ class Rohit:
                 'upi_id': UPI_ID,
                 'qr_pic': QR_PIC,
                 'premium_plan_text': "",
-                'protect_content': PROTECT_CONTENT
+                'protect_content': PROTECT_CONTENT,
+                'bot_username': BOT_USERNAME # Added missing key for Node.js Express server
             }
             await self.settings_col.insert_one(default_settings)
             return default_settings
