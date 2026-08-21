@@ -7,7 +7,6 @@ import string
 import time
 import logging
 import traceback
-import base64  # Vercel Anti-Bypass Data Encoding
 from datetime import datetime, timedelta
 from pyrogram import Client, filters, __version__, enums
 from pyrogram.enums import ParseMode, ChatAction
@@ -121,7 +120,7 @@ async def start_command(client: Client, message: Message):
             return await handle_multi_batch_start(client, message, base64_string)
 
         # ----------------------------------------------------------------------
-        # DYNAMIC VERIFICATION ENGINE (Vercel Anti-Bypass Integrated)
+        # DYNAMIC ANTI-BYPASS VERIFICATION ENGINE (RENDER PROXY INTEGRATED)
         # ----------------------------------------------------------------------
         verify_status = await db.get_verify_status(user_id)
 
@@ -130,6 +129,21 @@ async def start_command(client: Client, message: Message):
         shortlink_api = bot_settings.get('shortlink_api', SHORTLINK_API)
         tut_vid = bot_settings.get('tut_vid', TUT_VID)
         verify_expire = bot_settings.get('verify_expire', VERIFY_EXPIRE)
+        render_domain = bot_settings.get('render_domain', "https://your-app.onrender.com")
+
+        # Sync Shortener Settings to MongoDB for Render Middleware Access
+        try:
+            await db.db.bot_settings.update_one(
+                {"_id": "main_settings"},
+                {"$set": {
+                    "shortlink_url": shortlink_url,
+                    "shortlink_api": shortlink_api,
+                    "bot_username": client.username
+                }},
+                upsert=True
+            )
+        except Exception as e:
+            logger.error(f"Error syncing settings to MongoDB for Render Proxy: {e}")
 
         # Verification system trigger check
         if verify_mode and shortlink_url and shortlink_api:
@@ -139,8 +153,6 @@ async def start_command(client: Client, message: Message):
 
             if "verify_" in text:
                 _, token = text.split("_", 1)
-                if verify_status['verify_token'] != token:
-                    return await message.reply("<blockquote>⚠️ <b>Iɴᴠᴀʟɪᴅ Tᴏᴋᴇɴ. Pʟᴇᴀsᴇ /start Aɢᴀɪɴ.</b></blockquote>")
 
                 await db.update_verify_status(user_id, is_verified=True, verified_time=time.time())
                 current = await db.get_verify_count(user_id)
@@ -160,23 +172,25 @@ async def start_command(client: Client, message: Message):
                 )
 
             if not verify_status['is_verified'] and not is_premium:
-                token = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+                token = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+                
+                # Single-Use Token DB Insertion for Render Proxy validation
+                try:
+                    await db.db.verify_tokens.insert_one({
+                        "token": token,
+                        "user_id": user_id,
+                        "is_used": False,
+                        "created_at": time.time()
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to insert verify token: {e}")
+
                 await db.update_verify_status(user_id, verify_token=token, link=base64_string)
                 
-                # 1. Target Telegram redirect link
-                tg_verify_url = f'https://t.me/{client.username}?start=verify_{token}'
-
-                # 2. Encode to Base64
-                encoded_tg_url = base64.b64encode(tg_verify_url.encode('utf-8')).decode('utf-8')
-
-                # 3. Construct Anti-Bypass Vercel Gate URL
-                vercel_gate_url = f"https://myminia.vercel.app/?data={encoded_tg_url}"
-
-                # 4. Shorten the Vercel Gate link
-                link = await get_shortlink(shortlink_url, shortlink_api, vercel_gate_url)
+                render_verify_link = f"{render_domain.rstrip('/')}/verify?token={token}"
 
                 btn = [
-                    [InlineKeyboardButton("• Vᴇʀɪғɪᴇᴅ •", url=link),
+                    [InlineKeyboardButton("• Vᴇʀɪғʏ Nᴏᴡ •", url=render_verify_link),
                      InlineKeyboardButton("• Tᴜᴛᴏʀɪᴀʟ •", url=tut_vid)],
                     [InlineKeyboardButton("• Bᴜʏ Pʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
                 ]
@@ -289,7 +303,7 @@ async def start_command(client: Client, message: Message):
 
         if FILE_AUTO_DELETE > 0:
             notification_msg = await message.reply(
-                f"<blockquote><b>Tʜɪs Fɪʟᴇ Wɪʟʟ Bᴇ Dᴇʟᴇᴛᴇᴅ Iɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ Sᴀᴠᴇ Oʀ Fᴏʀᴡᴀʀᴅ Iᴛ Tᴏ Yᴏᴜʀ Sᴀᴠᴇᴅ Mᴇssᴀɢᴇs Bᴇғᴏʀᴇ Iᴛ Gᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b></blockquote>"
+                f"<blockquote><b>Tʜɪs Fɪʟᴇ Wɪʟʟ Bᴇ Dᴇʟᴇᴛᴇᴅ Iɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ Sᴀᴠᴇ Oʀ Fᴏʀᴡᴀʀᴅ Iᴛ Tᴏ Yᴏᴜʀ Sᴀᴠᴇᴅ MᴇssᴀɢES Bᴇғᴏʀᴇ Iᴛ Gᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b></blockquote>"
             )
 
             await asyncio.sleep(FILE_AUTO_DELETE)
@@ -457,7 +471,7 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
 
     except Exception as e:
         logger.error(f"❌ [START MBATCH ERROR] {e}\n{traceback.format_exc()}")
-        await message.reply_text(f"<blockquote>❌ <b>Sᴛᴀʀᴛ EʀʀᴏR:</b> <code>{e}</code></blockquote>")
+        await message.reply_text(f"<blockquote>❌ <b>Sᴛᴀʀᴛ Eʀʀᴏʀ:</b> <code>{e}</code></blockquote>")
 
 
 # ==============================================================================
@@ -585,7 +599,7 @@ async def add_premium_user_command(client: Client, msg: Message):
             "<blockquote>⚠️ <b>Uꜱᴀɢᴇ:</b> /addpremium &lt;user_id&gt; &lt;time_value&gt; &lt;time_unit&gt;\n\n"
             "<b>Tɪᴍᴇ Uɴɪᴛs:</b>\n"
             "s - sᴇᴄᴏɴᴅs\n"
-            "m - ᴍɪɴᴜᴛᴇs\n"
+            "m - ᴍɪɴᴜᴛES\n"
             "h - ʜᴏᴜʀs\n"
             "d - ᴅᴀʏs\n"
             "y - ʏᴇᴀʀs\n\n"
@@ -622,7 +636,7 @@ async def add_premium_user_command(client: Client, msg: Message):
             pass
 
     except ValueError:
-        await msg.reply_text("<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Iɴᴘᴜᴛ. Pʟᴇᴀsᴇ Eɴsᴜʀᴇ Uꜱᴇʀ ID Aɴᴅ Tɪᴍᴇ Vᴀʟᴜᴇ Aʀᴇ NᴜᴍʙᴇRꜱ.</b></blockquote>")
+        await msg.reply_text("<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Iɴᴘᴜᴛ. Pʟᴇᴀsᴇ Eɴsᴜʀᴇ Uꜱᴇʀ ID Aɴᴅ Tɪᴍᴇ Vᴀʟᴜᴇ Aʀᴇ Nᴜᴍʙᴇʀs.</b></blockquote>")
     except Exception as e:
         await msg.reply_text(f"<blockquote>⚠️ <b>Aɴ Eʀʀᴏʀ Oᴄᴄᴜʀʀᴇᴅ:</b> <code>{str(e)}</code></blockquote>")
 
