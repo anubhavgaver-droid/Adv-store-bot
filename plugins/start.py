@@ -12,7 +12,8 @@ from pyrogram import Client, filters, __version__, enums
 from pyrogram.enums import ParseMode, ChatAction
 from pyrogram.types import (
     Message, InlineKeyboardMarkup, InlineKeyboardButton, 
-    CallbackQuery, ReplyKeyboardMarkup, ChatInviteLink, ChatPrivileges
+    CallbackQuery, ReplyKeyboardMarkup, ChatInviteLink, ChatPrivileges,
+    WebAppInfo  # 👈 Added WebAppInfo for Mini App
 )
 from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant, MessageNotModified
 from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated, MessageDeleteForbidden
@@ -49,10 +50,8 @@ Message.reply_photo = patched_reply_photo
 
 BAN_SUPPORT = f"{BAN_SUPPORT}"
 
-# Global dict for active cancellation tracking
 cancel_tasks = {}
 
-# DB Channel ID Safe Fetcher Helper
 def get_db_channel_id(client: Client):
     if hasattr(client, "db_channel") and client.db_channel:
         return getattr(client.db_channel, "id", client.db_channel)
@@ -79,18 +78,15 @@ async def start_command(client: Client, message: Message):
     user_id = message.from_user.id
     is_premium = await is_premium_user(user_id)
     
-    # Add user if not already present
     if not await db.present_user(user_id):
         try:
             await db.add_user(user_id)
         except Exception:
             pass
 
-    # ✅ Check Force Subscription First
     if not await is_subscribed(client, user_id):
         return await not_joined(client, message)
 
-    # Check if user is banned
     banned_users = await db.get_ban_users()
     if user_id in banned_users:
         return await message.reply_text(
@@ -104,7 +100,6 @@ async def start_command(client: Client, message: Message):
     FILE_AUTO_DELETE = await db.get_del_timer()
     text = message.text
 
-    # Dynamic Bot Settings Fetching from Database
     bot_settings = await db.get_bot_settings()
     protect_content_val = bot_settings.get('protect_content', PROTECT_CONTENT)
     custom_caption_val = bot_settings.get('custom_caption', CUSTOM_CAPTION)
@@ -115,12 +110,11 @@ async def start_command(client: Client, message: Message):
         except IndexError:
             return
 
-        # 🔥 MULTI-BATCH DEEP LINK HANDLER
         if base64_string.startswith("mbatch_") or base64_string.startswith("batch_"):
             return await handle_multi_batch_start(client, message, base64_string)
 
         # ----------------------------------------------------------------------
-        # DYNAMIC ANTI-BYPASS VERIFICATION ENGINE (RENDER PROXY INTEGRATED)
+        # DYNAMIC ANTI-BYPASS VERIFICATION ENGINE (MINI APP INTEGRATED)
         # ----------------------------------------------------------------------
         verify_status = await db.get_verify_status(user_id)
 
@@ -131,10 +125,9 @@ async def start_command(client: Client, message: Message):
         verify_expire = bot_settings.get('verify_expire', VERIFY_EXPIRE)
         render_domain = bot_settings.get('render_domain', "https://anubhavvgani.onrender.com")
 
-        # Safe Username Fetch
         bot_username = getattr(getattr(client, 'me', None), 'username', None) or "SmartfilestorebyAcbot"
 
-        # ✅ FIX 1: Sync Shortener Settings to 'settings' collection (_id: 'bot_settings') for Express Proxy
+        # Sync Shortener Settings for Express Proxy
         try:
             await db.settings_col.update_one(
                 {"_id": "bot_settings"},
@@ -148,7 +141,6 @@ async def start_command(client: Client, message: Message):
         except Exception as e:
             logger.error(f"Error syncing settings to MongoDB for Express Proxy: {e}")
 
-        # Verification system trigger check
         if verify_mode and shortlink_url and shortlink_api:
             if verify_status['is_verified'] and verify_expire < (time.time() - verify_status['verified_time']):
                 await db.update_verify_status(user_id, is_verified=False)
@@ -177,7 +169,6 @@ async def start_command(client: Client, message: Message):
             if not verify_status['is_verified'] and not is_premium:
                 token = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
                 
-                # ✅ FIX 2: Single-Use Token DB Insertion using database.py method
                 try:
                     await db.save_verify_token(user_id, token)
                 except Exception as e:
@@ -187,10 +178,15 @@ async def start_command(client: Client, message: Message):
                 
                 render_verify_link = f"{render_domain.rstrip('/')}/verify?token={token}"
 
+                # 🚀 Mini App WebAppInfo Button Integration
                 btn = [
-                    [InlineKeyboardButton("• Vᴇʀɪғʏ Nᴏᴡ •", url=render_verify_link),
-                     InlineKeyboardButton("• Tᴜᴛᴏʀɪᴀʟ •", url=tut_vid)],
-                    [InlineKeyboardButton("• Bᴜʏ Pʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)]
+                    [
+                        InlineKeyboardButton("• Vᴇʀɪғʏ Nᴏᴡ •", web_app=WebAppInfo(url=render_verify_link)),
+                        InlineKeyboardButton("• Tᴜᴛᴏʀɪᴀʟ •", url=tut_vid)
+                    ],
+                    [
+                        InlineKeyboardButton("• Bᴜʏ Pʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)
+                    ]
                 ]
                 return await message.reply(
                     f"<blockquote><b>Yᴏᴜʀ Tᴏᴋᴇɴ Hᴀs E xᴘɪʀᴇᴅ. Pʟᴇᴀsᴇ Rᴇғʀᴇsʜ Yᴏᴜʀ Tᴏᴋᴇɴ Tᴏ Cᴏɴᴛɪɴᴜᴇ..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(verify_expire)}</blockquote>",
@@ -198,7 +194,7 @@ async def start_command(client: Client, message: Message):
                     protect_content=protect_content_val
                 )
 
-        # Standard Base64 Batch / Single File Hash Processing
+        # Standard Base64 Processing
         try:
             decoded_str = await decode(base64_string)
             argument = decoded_str.split("-")
@@ -252,7 +248,6 @@ async def start_command(client: Client, message: Message):
 
             await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.UPLOAD_DOCUMENT)
 
-            # Dynamic Custom Caption Application
             if bool(custom_caption_val):
                 prev_cap = "" if not msg.caption else msg.caption.html
                 f_name = msg.document.file_name if msg.document and hasattr(msg.document, 'file_name') else ""
@@ -337,10 +332,8 @@ async def start_command(client: Client, message: Message):
         except Exception:
             pass  
         
-        # 🟢 DYNAMIC START MESSAGE FROM DB
         dyn_start_msg = bot_settings.get('start_msg') or START_MSG
 
-        # 🟢 START PIC LOGIC
         dyn_start_pic = bot_settings.get('start_pic', '')
         if isinstance(dyn_start_pic, str):
             dyn_start_pic = dyn_start_pic.strip()
@@ -373,10 +366,8 @@ async def start_command(client: Client, message: Message):
         except Exception:
             formatted_caption = dyn_start_msg
 
-        # Wrap dynamic start caption in blockquote
         formatted_caption = f"<blockquote>{formatted_caption}</blockquote>"
 
-        # If Photo exists in DB, send Photo else send Text Only
         if dyn_start_pic:
             try:
                 await message.reply_photo(
@@ -408,9 +399,6 @@ async def start_command(client: Client, message: Message):
         return
 
 
-# ==============================================================================
-# ⚙️ SETTINGS BUTTON CALLBACK HANDLER (ADMIN ONLY)
-# ==============================================================================
 @Bot.on_callback_query(filters.regex("^cb_settings$"))
 async def cb_settings_handler(client: Client, query: CallbackQuery):
     user_id = query.from_user.id
@@ -421,9 +409,6 @@ async def cb_settings_handler(client: Client, query: CallbackQuery):
     await send_main_settings_panel(query)
 
 
-# ==============================================================================
-# MULTI-BATCH START HANDLER (URL Buttons + Auto Delete after 1 Min)
-# ==============================================================================
 async def handle_multi_batch_start(client: Client, message: Message, payload: str):
     try:
         batch_id = payload.replace("mbatch_", "").replace("batch_", "").strip().lower()
@@ -473,9 +458,6 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
         await message.reply_text(f"<blockquote>❌ <b>Sᴛᴀʀᴛ Eʀʀᴏʀ:</b> <code>{e}</code></blockquote>")
 
 
-# ==============================================================================
-# CALLBACK QUEUE FOR CANCEL DELIVERY
-# ==============================================================================
 @Bot.on_callback_query(filters.regex(r"^cancel_delivery_"), group=-1)
 async def cancel_delivery_callback(client: Client, callback_query: CallbackQuery):
     try:
@@ -508,9 +490,6 @@ async def cancel_delivery_callback(client: Client, callback_query: CallbackQuery
         pass
 
 
-# ==============================================================================
-# FORCE SUBSCRIBE NOT JOINED HANDLER
-# ==============================================================================
 chat_data_cache = {}
 
 async def not_joined(client: Client, message: Message):
@@ -582,9 +561,6 @@ async def not_joined(client: Client, message: Message):
         except Exception: pass
 
 
-# ==============================================================================
-# PREMIUM AND COMMAND HANDLERS
-# ==============================================================================
 @Bot.on_message(filters.command('myplan') & filters.private)
 async def check_plan(client: Client, message: Message):
     user_id = message.from_user.id  
@@ -651,7 +627,7 @@ async def pre_remove_user(client: Client, msg: Message):
         await remove_premium(user_id)
         await msg.reply_text(f"<blockquote>✅ <b>Uꜱᴇʀ <code>{user_id}</code> Hᴀs Bᴇᴇɴ Rᴇᴍᴏᴠᴇᴅ.</b></blockquote>")
     except ValueError:
-        await msg.reply_text("<blockquote>⚠️ <b>Uꜱᴇʀ ID Mᴜsᴛ Bᴇ Aɴ Iɴᴛᴇɢᴇʀ Oʀ Nᴏᴛ Aᴠᴀɪʟᴀʙʟᴇ Iɴ Dᴀᴛᴀʙᴀsᴇ.</b></blockquote>")
+        await msg.reply_text("<blockquote>⚠️ <b>Uꜱᴇʀ ID Mᴜsᴛ Bᴇ Aɴ IɴᴛᴇGFᴇʀ Oʀ Nᴏᴛ Aᴠᴀɪʟᴀʙʟᴇ Iɴ Dᴀᴛᴀʙᴀsᴇ.</b></blockquote>")
 
 
 @Bot.on_message(filters.command('premium_users') & filters.private & admin)
