@@ -131,19 +131,22 @@ async def start_command(client: Client, message: Message):
         verify_expire = bot_settings.get('verify_expire', VERIFY_EXPIRE)
         render_domain = bot_settings.get('render_domain', "https://anubhavvgani.onrender.com")
 
-        # Sync Shortener Settings to MongoDB for Render Middleware Access
+        # Safe Username Fetch
+        bot_username = getattr(getattr(client, 'me', None), 'username', None) or "SmartfilestorebyAcbot"
+
+        # ✅ FIX 1: Sync Shortener Settings to 'settings' collection (_id: 'bot_settings') for Express Proxy
         try:
-            await db.db.bot_settings.update_one(
-                {"_id": "main_settings"},
+            await db.settings_col.update_one(
+                {"_id": "bot_settings"},
                 {"$set": {
                     "shortlink_url": shortlink_url,
                     "shortlink_api": shortlink_api,
-                    "bot_username": client.username
+                    "bot_username": bot_username
                 }},
                 upsert=True
             )
         except Exception as e:
-            logger.error(f"Error syncing settings to MongoDB for Render Proxy: {e}")
+            logger.error(f"Error syncing settings to MongoDB for Express Proxy: {e}")
 
         # Verification system trigger check
         if verify_mode and shortlink_url and shortlink_api:
@@ -162,7 +165,7 @@ async def start_command(client: Client, message: Message):
                 if not file_id:
                     file_id = base64_string  
 
-                btn = [[InlineKeyboardButton("🚀 Gᴇᴛ Fɪʟᴇ Nᴏᴡ", url=f"https://t.me/{client.username}?start={file_id}")]]
+                btn = [[InlineKeyboardButton("🚀 Gᴇᴛ Fɪʟᴇ Nᴏᴡ", url=f"https://t.me/{bot_username}?start={file_id}")]]
                 
                 return await message.reply(
                     f"<blockquote>✅ <b>Tᴏᴋᴇɴ Vᴇʀɪғɪᴇᴅ!</b>\n\nVᴀʟɪᴅ Fᴏʀ: {get_exp_time(verify_expire)}\n\n"
@@ -174,14 +177,9 @@ async def start_command(client: Client, message: Message):
             if not verify_status['is_verified'] and not is_premium:
                 token = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
                 
-                # Single-Use Token DB Insertion for Render Proxy validation
+                # ✅ FIX 2: Single-Use Token DB Insertion using database.py method
                 try:
-                    await db.db.verify_tokens.insert_one({
-                        "token": token,
-                        "user_id": user_id,
-                        "is_used": False,
-                        "created_at": time.time()
-                    })
+                    await db.save_verify_token(user_id, token)
                 except Exception as e:
                     logger.error(f"Failed to insert verify token: {e}")
 
@@ -317,7 +315,7 @@ async def start_command(client: Client, message: Message):
 
             try:
                 reload_url = (
-                    f"https://t.me/{client.username}?start={message.command[1]}"
+                    f"https://t.me/{bot_username}?start={message.command[1]}"
                     if message.command and len(message.command) > 1
                     else None
                 )
@@ -438,6 +436,7 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
         ranges = batch_data.get("ranges", [])
         buttons = []
         db_channel_id = abs(get_db_channel_id(client))
+        bot_username = getattr(getattr(client, 'me', None), 'username', None) or "SmartfilestorebyAcbot"
 
         for item in ranges:
             if "base64_hash" in item and item["base64_hash"]:
@@ -448,7 +447,7 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
                 raw_string = f"get-{start_id * db_channel_id}-{end_id * db_channel_id}"
                 batch_hash = await encode(raw_string)
 
-            batch_url = f"https://t.me/{client.username}?start={batch_hash}"
+            batch_url = f"https://t.me/{bot_username}?start={batch_hash}"
 
             buttons.append([
                 InlineKeyboardButton(f"📺 {item['title']}", url=batch_url)
@@ -519,6 +518,7 @@ async def not_joined(client: Client, message: Message):
     user_id = message.from_user.id
     buttons = []
     count = 0
+    bot_username = getattr(getattr(client, 'me', None), 'username', None) or "SmartfilestorebyAcbot"
 
     try:
         all_channels = await db.show_channels()  
@@ -564,7 +564,7 @@ async def not_joined(client: Client, message: Message):
             buttons.append([
                 InlineKeyboardButton(
                     text='♻️ Tʀʏ Aɢᴀɪɴ',
-                    url=f"https://t.me/{client.username}?start={message.command[1]}"
+                    url=f"https://t.me/{bot_username}?start={message.command[1]}"
                 )
             ])
         except IndexError:
@@ -596,7 +596,7 @@ async def check_plan(client: Client, message: Message):
 async def add_premium_user_command(client: Client, msg: Message):
     if len(msg.command) != 4:
         await msg.reply_text(
-            "<blockquote>⚠️ <b>Uꜱᴀɢᴇ:</b> /addpremium &lt;user_id&gt; &lt;time_value&gt; &lt;time_unit&gt;\n\n"
+            "<blockquote>⚠️ <b>UꜱᴀɢE:</b> /addpremium &lt;user_id&gt; &lt;time_value&gt; &lt;time_unit&gt;\n\n"
             "<b>Tɪᴍᴇ Uɴɪᴛs:</b>\n"
             "s - sᴇᴄᴏɴᴅs\n"
             "m - ᴍɪɴᴜᴛES\n"
@@ -644,7 +644,7 @@ async def add_premium_user_command(client: Client, msg: Message):
 @Bot.on_message(filters.command('remove_premium') & filters.private & admin)
 async def pre_remove_user(client: Client, msg: Message):
     if len(msg.command) != 2:
-        await msg.reply_text("<blockquote>⚠️ <b>Uꜱᴀɢᴇ:</b> /remove_premium user_id</blockquote>")
+        await msg.reply_text("<blockquote>⚠️ <b>UꜱᴀɢE:</b> /remove_premium user_id</blockquote>")
         return
     try:
         user_id = int(msg.command[1])
