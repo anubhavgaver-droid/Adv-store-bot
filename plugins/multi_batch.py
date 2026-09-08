@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 
 # --- Helper Functions ---
 async def get_chat_and_msg_id(client: Client, message: Message):
+    if not message:
+        return None, None
+        
     if message.forward_from_chat:
         return message.forward_from_chat.id, message.forward_from_message_id
     elif message.text and "t.me/" in message.text:
@@ -101,32 +104,47 @@ async def multi_batch_admin_callbacks(client: Client, query: CallbackQuery):
     user_id = query.from_user.id
 
     if data == "ignore":
-        await query.answer("⚠️ Tʜɪs ɪs ᴊᴜsᴛ ᴀ ᴛɪᴛʟᴇ ʙᴜᴛᴛᴏɴ.", show_alert=False)
-        return
+        return await query.answer("⚠️ Tʜɪs ɪs ᴊᴜsᴛ ᴀ ᴛɪᴛʟᴇ ʙᴜᴛᴛᴏɴ.", show_alert=False)
 
-    await query.answer()
+    try:
+        await query.answer()
+    except Exception:
+        pass
 
     # --- Add New Episode Range (+) ---
     if data.startswith("add_mrange_"):
         batch_id = data.replace("add_mrange_", "")
 
         # Step 1: Button Title
-        title_msg = await client.ask(
-            chat_id=user_id,
-            text="<blockquote>📝 <b>Eɴᴛᴇʀ Bᴜᴛᴛᴏɴ Tɪᴛʟᴇ:</b>\n\n(E xᴀᴍᴘʟᴇ: <code>Eᴘ 1 ᴛᴏ 10</code> ᴏʀ <code>Sᴇᴀsᴏɴ 1</code>)</blockquote>",
-            timeout=60
-        )
-        if not title_msg or (title_msg.text and title_msg.text.startswith("/")):
-            await query.message.reply("<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ!</b></blockquote>")
+        try:
+            title_msg = await client.ask(
+                chat_id=user_id,
+                text="<blockquote>📝 <b>Eɴᴛᴇʀ Bᴜᴛᴛᴏɴ Tɪᴛʟᴇ:</b>\n\n(E xᴀᴍᴘʟᴇ: <code>Eᴘ 1 ᴛᴏ 10</code> ᴏʀ <code>Sᴇᴀsᴏɴ 1</code>)</blockquote>",
+                timeout=60
+            )
+        except Exception:
+            await query.message.reply("<blockquote>⏰ <b>Tɪᴍᴇᴏᴜᴛ! Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ.</b></blockquote>")
             return
+
+        # 🔧 FIX 1: Check if message exists, has text, and extract text safely
+        if not title_msg or not title_msg.text or title_msg.text.startswith("/"):
+            await query.message.reply(" Pet <blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Tɪᴛʟᴇ Oʀ Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ!</b></blockquote>")
+            return
+            
         btn_title = title_msg.text.strip()
 
         # Step 2: First Message
-        first_message = await client.ask(
-            chat_id=user_id,
-            text=f"<blockquote>Fᴏʀᴡᴀʀᴅ Fɪʀsᴛ Mᴇssᴀɢᴇ ғᴏʀ <b>'{btn_title}'</b> ᴏʀ Sᴇɴᴅ Lɪɴᴋ:</blockquote>",
-            timeout=60
-        )
+        try:
+            first_message = await client.ask(
+                chat_id=user_id,
+                text=f"<blockquote>Fᴏʀᴡᴀʀᴅ Fɪʀsᴛ Mᴇssᴀɢᴇ ғᴏʀ <b>'{btn_title}'</b> ᴏʀ Sᴇɴᴅ Lɪɴᴋ:</blockquote>",
+                timeout=60
+            )
+        except Exception:
+            await query.message.reply("<blockquote>⏰ <b>Tɪᴍᴇᴏᴜᴛ! Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ.</b></blockquote>")
+            return
+
+        # 🔧 FIX 2: Safe handling if input starts with command
         if not first_message or (first_message.text and first_message.text.startswith("/")):
             await query.message.reply("<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ!</b></blockquote>")
             return
@@ -141,24 +159,29 @@ async def multi_batch_admin_callbacks(client: Client, query: CallbackQuery):
             return
 
         # Step 3: Last Message
-        second_message = await client.ask(
-            chat_id=user_id,
-            text=f"<blockquote>Fᴏʀᴡᴀʀᴅ Lᴀsᴛ Mᴇssᴀɢᴇ ғᴏʀ <b>'{btn_title}'</b> ᴏʀ Sᴇɴᴅ Lɪɴᴋ:</blockquote>",
-            timeout=60
-        )
+        try:
+            second_message = await client.ask(
+                chat_id=user_id,
+                text=f"<blockquote>Fᴏʀᴡᴀʀᴅ Lᴀsᴛ Mᴇssᴀɢᴇ ғᴏʀ <b>'{btn_title}'</b> ᴏR Sᴇɴᴅ Lɪɴᴋ:</blockquote>",
+                timeout=60
+            )
+        except Exception:
+            await query.message.reply("<blockquote>⏰ <b>Tɪᴍᴇᴏᴜᴛ! Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ.</b></blockquote>")
+            return
+
         if not second_message or (second_message.text and second_message.text.startswith("/")):
             await query.message.reply("<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ!</b></blockquote>")
             return
 
         s_chat_id, s_msg_id = await get_chat_and_msg_id(client, second_message)
         if not s_chat_id or not s_msg_id or f_chat_id != s_chat_id:
-            await query.message.reply("<blockquote>❌ <b>Bᴏᴛʜ Mᴇssᴀɢᴇs Mᴜsᴛ Bᴇ Fʀᴏᴍ Tʜᴇ Sᴀᴍᴇ Cʜᴀɴɴᴇʟ!</b></blockquote>")
+            await query.message.reply("<blockquote>❌ <b>Bᴏᴛʜ MᴇssᴀɢES Mᴜsᴛ Bᴇ Fʀᴏᴍ Tʜᴇ Sᴀᴍᴇ Cʜᴀɴɴᴇʟ!</b></blockquote>")
             return
 
         # --- DB Channel Copy Processing ---
-        db_channel_id = client.db_channel.id
+        db_channel_id = getattr(client.db_channel, "id", client.db_channel)
         if f_chat_id != db_channel_id:
-            status_msg = await query.message.reply("<blockquote>⏳ <b>Cᴏᴘʏɪɴɢ Mᴇssᴀɢᴇs Tᴏ DB Cʜᴀɴɴᴇʟ...</b></blockquote>", quote=True)
+            status_msg = await query.message.reply("<blockquote>⏳ <b>Cᴏᴘʏɪɴɢ MᴇssᴀɢES Tᴏ DB Cʜᴀɴɴᴇʟ...</b></blockquote>", quote=True)
             copied_start_id = None
             copied_end_id = None
 
@@ -174,7 +197,10 @@ async def multi_batch_admin_callbacks(client: Client, query: CallbackQuery):
                 except Exception:
                     continue
 
-            await status_msg.delete()
+            try:
+                await status_msg.delete()
+            except Exception:
+                pass
 
             if copied_start_id and copied_end_id:
                 f_msg_id = copied_start_id
@@ -184,8 +210,8 @@ async def multi_batch_admin_callbacks(client: Client, query: CallbackQuery):
                 return
 
         # Create Base64 Hash
-        string = f"get-{f_msg_id * abs(db_channel_id)}-{s_msg_id * abs(db_channel_id)}"
-        base64_string = await encode(string)
+        raw_string = f"get-{f_msg_id * abs(db_channel_id)}-{s_msg_id * abs(db_channel_id)}"
+        base64_string = await encode(raw_string)
 
         new_range = {
             "title": btn_title,
@@ -198,7 +224,7 @@ async def multi_batch_admin_callbacks(client: Client, query: CallbackQuery):
     # --- Master Link Generation ---
     elif data.startswith("get_mlink_"):
         batch_id = data.replace("get_mlink_", "")
-        bot_username = client.username if hasattr(client, "username") else (await client.get_me()).username
+        bot_username = getattr(getattr(client, 'me', None), 'username', None) or (await client.get_me()).username
         link = f"https://t.me/{bot_username}?start=batch_{batch_id}"
         reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Sʜᴀʀᴇ URL", url=f'https://telegram.me/share/url?url={link}')]])
         await query.message.reply_text(f"<blockquote>✨ <b>Mᴀsᴛᴇʀ Eᴘɪsᴏᴅᴇ Lɪɴᴋ:</b>\n\n{link}</blockquote>", reply_markup=reply_markup)
