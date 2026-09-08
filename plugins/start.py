@@ -409,6 +409,9 @@ async def cb_settings_handler(client: Client, query: CallbackQuery):
     await send_main_settings_panel(query)
 
 
+# ==============================================================================
+# FIXED MULTI-BATCH START HANDLER (INLINE BUTTONS WITH DIRECT LINKS)
+# ==============================================================================
 async def handle_multi_batch_start(client: Client, message: Message, payload: str):
     try:
         batch_id = payload.replace("mbatch_", "").replace("batch_", "").strip().lower()
@@ -419,29 +422,34 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
             return
 
         ranges = batch_data.get("ranges", [])
+        db_channel_id = abs(get_db_channel_id(client))
+        bot_username = getattr(getattr(client, 'me', None), 'username', None) or "SmartfilestorebyAcbot"
 
-        # 1. Prepare button titles
+        # 1. Direct Deep-Link Inline Buttons Prepare Karein
         temp_buttons = []
         for item in ranges:
-            temp_buttons.append(f"📺 {item['title']}")
+            batch_hash = item.get("base64_hash", "")
+            if not batch_hash:
+                start_id = item.get("start_id", 0)
+                end_id = item.get("end_id", 0)
+                raw_string = f"get-{start_id * db_channel_id}-{end_id * db_channel_id}"
+                batch_hash = await encode(raw_string)
 
-        # 2. Chunk buttons into a 2x2 grid layout
-        keyboard_rows = []
+            batch_url = f"https://t.me/{bot_username}?start={batch_hash}"
+            temp_buttons.append(InlineKeyboardButton(f"📺 {item['title']}", url=batch_url))
+
+        # 2. 2x2 Inline Grid Format Structure
+        keyboard = []
         for i in range(0, len(temp_buttons), 2):
-            keyboard_rows.append(temp_buttons[i:i + 2])
+            keyboard.append(temp_buttons[i:i + 2])
 
-        # 3. Create ReplyKeyboardMarkup (replaces chat keyboard)
-        reply_markup = ReplyKeyboardMarkup(
-            keyboard_rows,
-            resize_keyboard=True,
-            one_time_keyboard=True
-        )
+        markup = InlineKeyboardMarkup(keyboard)
         
         mbatch_msg = await message.reply_text(
             f"<blockquote>🎬 <b>Mᴜʟᴛɪ-Bᴀᴛᴄʜ Eᴘɪsᴏᴅᴇs:</b> <code>{batch_id.upper()}</code>\n\n"
-            f"👇 <b>Cʜᴏᴏsᴇ Aɴ Eᴘɪsᴏᴅᴇ Fʀᴏᴍ Tʜᴇ Kᴇʏʙᴏᴀʀᴅ Bᴇʟᴏᴡ:</b>\n\n"
-            f"⏳ <i>Tʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇᴅ ɪɴ 1 ᴍɪɴᴜᴛᴇ.</i></blockquote>",
-            reply_markup=reply_markup
+            f"👇 <b>Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴs Bᴇʟᴏᴡ Tᴏ Gᴇᴛ Yᴏᴜʀ Eᴘɪsᴏᴅᴇs:</b>\n\n"
+            f"⏳ <i>Tʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇᴅ ɪɴ 1 ᴍɪɴᴜᴛE.</i></blockquote>",
+            reply_markup=markup
         )
 
         await asyncio.sleep(60)
@@ -453,6 +461,31 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
     except Exception as e:
         logger.error(f"❌ [START MBATCH ERROR] {e}\n{traceback.format_exc()}")
         await message.reply_text(f"<blockquote>❌ <b>Sᴛᴀʀᴛ EʀʀᴏR:</b> <code>{e}</code></blockquote>")
+
+
+# ==============================================================================
+# FALLBACK PLAIN TEXT RESPONSE HANDLER (FOR KEYBOARD BUTTON TEXT CLICKS)
+# ==============================================================================
+@Bot.on_message(filters.private & filters.text & ~filters.command(["start", "myplan", "addpremium", "remove_premium", "premium_users", "count", "commands", "multi_batch"]))
+async def handle_text_button_click(client: Client, message: Message):
+    text = message.text.replace("📺", "").strip()
+    user_id = message.from_user.id
+
+    if not await is_subscribed(client, user_id):
+        return await not_joined(client, message)
+
+    # Search title matches across database multi-batch entries
+    try:
+        all_batches = await db.get_all_multi_batches() if hasattr(db, "get_all_multi_batches") else []
+        for batch in all_batches:
+            for item in batch.get("ranges", []):
+                if item.get("title", "").strip().lower() == text.lower():
+                    batch_hash = item.get("base64_hash", "")
+                    if batch_hash:
+                        message.text = f"/start {batch_hash}"
+                        return await start_command(client, message)
+    except Exception as e:
+        logger.error(f"Error handling plain text button fallback: {e}")
 
 
 @Bot.on_callback_query(filters.regex(r"^cancel_delivery_"), group=-1)
@@ -576,7 +609,7 @@ async def add_premium_user_command(client: Client, msg: Message):
             "h - ʜᴏᴜʀs\n"
             "d - ᴅᴀʏs\n"
             "y - ʏᴇᴀʀs\n\n"
-            "<b>E xᴀᴍᴘʟᴇs:</b>\n"
+            "<b>E xᴀᴍᴘʟES:</b>\n"
             "/addpremium 123456789 30 m → 30 ᴍɪɴᴜᴛᴇs\n"
             "/addpremium 123456789 2 h → 2 ʜᴏᴜʀs\n"
             "/addpremium 123456789 1 d → 1 ᴅᴀʏ\n"
@@ -600,7 +633,7 @@ async def add_premium_user_command(client: Client, msg: Message):
             await client.send_message(
                 chat_id=user_id,
                 text=(
-                    f"<blockquote>🎉 <b>Pʀᴇᴍɪᴜᴍ Aᴄᴛɪᴠᴀᴛᴇᴅ!</b>\n\n"
+                    f"<blockquote>🎉 <b>PʀᴇᴍɪᴜM Aᴄᴛɪᴠᴀᴛᴇᴅ!</b>\n\n"
                     f"Yᴏᴜ ʜᴀᴠᴇ ʀᴇᴄᴇɪᴠᴇᴅ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇss ғᴏʀ <code>{time_value} {time_unit}</code>.\n"
                     f"<b>E xᴘɪʀᴇs Oɴ:</b> <code>{expiration_time}</code></blockquote>"
                 ),
@@ -611,7 +644,7 @@ async def add_premium_user_command(client: Client, msg: Message):
     except ValueError:
         await msg.reply_text("<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Iɴᴘᴜᴛ. Pʟᴇᴀsᴇ Eɴsᴜʀᴇ Uꜱᴇʀ ID Aɴᴅ Tɪᴍᴇ Vᴀʟᴜᴇ Aʀᴇ Nᴜᴍʙᴇʀs.</b></blockquote>")
     except Exception as e:
-        await msg.reply_text(f"<blockquote>⚠️ <b>Aɴ Eʀʀᴏʀ Oᴄᴄᴜʀʀᴇᴅ:</b> <code>{str(e)}</code></blockquote>")
+        await msg.reply_text(f"<blockquote>⚠️ <b>Aɴ EʀʀᴏR Oᴄᴄᴜʀʀᴇᴅ:</b> <code>{str(e)}</code></blockquote>")
 
 
 @Bot.on_message(filters.command('remove_premium') & filters.private & admin)
