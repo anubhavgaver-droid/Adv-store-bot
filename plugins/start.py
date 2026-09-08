@@ -13,7 +13,7 @@ from pyrogram.enums import ParseMode, ChatAction
 from pyrogram.types import (
     Message, InlineKeyboardMarkup, InlineKeyboardButton, 
     CallbackQuery, ReplyKeyboardMarkup, ChatInviteLink, ChatPrivileges,
-    WebAppInfo  # 👈 Added WebAppInfo for Mini App
+    WebAppInfo
 )
 from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant, MessageNotModified
 from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated, MessageDeleteForbidden
@@ -419,32 +419,29 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
             return
 
         ranges = batch_data.get("ranges", [])
-        buttons = []
-        db_channel_id = abs(get_db_channel_id(client))
-        bot_username = getattr(getattr(client, 'me', None), 'username', None) or "SmartfilestorebyAcbot"
 
+        # 1. Prepare button titles
+        temp_buttons = []
         for item in ranges:
-            if "base64_hash" in item and item["base64_hash"]:
-                batch_hash = item["base64_hash"]
-            else:
-                start_id = item["start_id"]
-                end_id = item["end_id"]
-                raw_string = f"get-{start_id * db_channel_id}-{end_id * db_channel_id}"
-                batch_hash = await encode(raw_string)
+            temp_buttons.append(f"📺 {item['title']}")
 
-            batch_url = f"https://t.me/{bot_username}?start={batch_hash}"
+        # 2. Chunk buttons into a 2x2 grid layout
+        keyboard_rows = []
+        for i in range(0, len(temp_buttons), 2):
+            keyboard_rows.append(temp_buttons[i:i + 2])
 
-            buttons.append([
-                InlineKeyboardButton(f"📺 {item['title']}", url=batch_url)
-            ])
-
-        markup = InlineKeyboardMarkup(buttons)
+        # 3. Create ReplyKeyboardMarkup (replaces chat keyboard)
+        reply_markup = ReplyKeyboardMarkup(
+            keyboard_rows,
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
         
         mbatch_msg = await message.reply_text(
             f"<blockquote>🎬 <b>Mᴜʟᴛɪ-Bᴀᴛᴄʜ Eᴘɪsᴏᴅᴇs:</b> <code>{batch_id.upper()}</code>\n\n"
-            f"👇 <b>Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴs Bᴇʟᴏᴡ Tᴏ Gᴇᴛ Yᴏᴜʀ Eᴘɪsᴏᴅᴇs:</b>\n\n"
+            f"👇 <b>Cʜᴏᴏsᴇ Aɴ Eᴘɪsᴏᴅᴇ Fʀᴏᴍ Tʜᴇ Kᴇʏʙᴏᴀʀᴅ Bᴇʟᴏᴡ:</b>\n\n"
             f"⏳ <i>Tʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇᴅ ɪɴ 1 ᴍɪɴᴜᴛᴇ.</i></blockquote>",
-            reply_markup=markup
+            reply_markup=reply_markup
         )
 
         await asyncio.sleep(60)
@@ -455,7 +452,7 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
 
     except Exception as e:
         logger.error(f"❌ [START MBATCH ERROR] {e}\n{traceback.format_exc()}")
-        await message.reply_text(f"<blockquote>❌ <b>Sᴛᴀʀᴛ Eʀʀᴏʀ:</b> <code>{e}</code></blockquote>")
+        await message.reply_text(f"<blockquote>❌ <b>Sᴛᴀʀᴛ EʀʀᴏR:</b> <code>{e}</code></blockquote>")
 
 
 @Bot.on_callback_query(filters.regex(r"^cancel_delivery_"), group=-1)
@@ -557,7 +554,7 @@ async def not_joined(client: Client, message: Message):
 
     except Exception as e:
         logger.error(f"Final Error: {e}")
-        try: await temp.edit("<blockquote><b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ Dᴇᴠᴇʟᴏᴘᴇʀ...</i></b></blockquote>")
+        try: await temp.edit("<blockquote><b><i>! EʀʀᴏR, Cᴏɴᴛᴀᴄᴛ Dᴇᴠᴇʟᴏᴘᴇʀ...</i></b></blockquote>")
         except Exception: pass
 
 
