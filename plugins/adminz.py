@@ -70,6 +70,7 @@ async def send_main_settings_panel(message_or_query):
     )
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("🚀 Sᴛᴀʀᴛ Sᴇᴛᴛɪɴɢs", callback_data="panel_start_settings")],
+        [InlineKeyboardButton("🗑️ Aᴜᴛᴏ Dᴇʟᴇᴛᴇ Tɪᴍᴇʀ", callback_data="panel_dlt_timer")],
         [InlineKeyboardButton("💎 Pʀᴇᴍɪᴜᴍ Pʟᴀɴ", callback_data="panel_premium")],
         [InlineKeyboardButton("🪙 Tᴏᴋᴇɴ Vᴇʀɪғɪᴄᴀᴛɪᴏɴ", callback_data="panel_verify")],
         [InlineKeyboardButton("✍️ Cᴜsᴛᴏᴍ Cᴀᴘᴛɪᴏɴ", callback_data="panel_caption")],
@@ -87,6 +88,66 @@ async def send_main_settings_panel(message_or_query):
 
 
 # ==============================================================================
+# 🗑️ AUTO DELETE TIMER MANAGEMENT (DYNAMIC)
+# ==============================================================================
+
+@Bot.on_callback_query(filters.regex("^panel_dlt_timer$"))
+async def panel_dlt_timer(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
+    
+    # Dynamic database fetch
+    duration = await db.get_del_timer()
+    timer_str = f"{duration} Sᴇᴄᴏɴᴅs" if duration and duration > 0 else "Dɪsᴀʙʟᴇᴅ (0s)"
+
+    caption = (
+        "<blockquote><b>🗑️ Aᴜᴛᴏ Dᴇʟᴇᴛᴇ Tɪᴍᴇʀ Sᴇᴛᴛɪɴɢs</b>\n\n"
+        f"<b>• Cᴜʀʀᴇɴᴛ Dᴇʟᴇᴛᴇ Tɪᴍᴇʀ:</b> <code>{timer_str}</code></blockquote>"
+    )
+
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✏️ Sᴇᴛ Dᴇʟᴇᴛᴇ Tɪᴍᴇʀ", callback_data="action_set_dlt_timer")],
+        [InlineKeyboardButton("🚫 Dɪsᴀʙʟᴇ Tɪᴍᴇʀ (0s)", callback_data="action_reset_dlt_timer")],
+        [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_main")]
+    ])
+
+    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+
+
+@Bot.on_callback_query(filters.regex("^action_set_dlt_timer$"))
+async def action_set_dlt_timer(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
+    await callback_query.message.delete()
+    user_id = callback_query.from_user.id
+    back_btn = InlineKeyboardMarkup([[InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_dlt_timer")]])
+
+    await client.send_message(
+        chat_id=user_id,
+        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ ɴᴇᴡ Dᴇʟᴇᴛᴇ Tɪᴍᴇʀ ɪɴ sᴇᴄᴏɴᴅs...</b>\n\n<i>E xᴀᴍᴘʟᴇ: 300 (ғᴏʀ 5 Mɪɴᴜᴛᴇs)</i>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
+        reply_markup=ForceReply(selective=True)
+    )
+    try:
+        res = await client.listen(chat_id=user_id, timeout=300)
+        if not res.text or res.text.startswith('/cancel'):
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
+
+        if res.text.isdigit():
+            new_time = int(res.text.strip())
+            await db.set_del_timer(new_time)
+            await res.reply(f"<blockquote>✅ <b>Dᴇʟᴇᴛᴇ Tɪᴍᴇʀ sᴇᴛ ᴛᴏ <code>{new_time} sᴇᴄᴏɴᴅs</code> sᴜᴄᴄᴇssғᴜʟʟʏ!</b></blockquote>", reply_markup=back_btn)
+        else:
+            await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Nᴜᴍʙᴇʀ! Pʟᴇᴀsᴇ enter a valid integer.</b></blockquote>", reply_markup=back_btn)
+    except Exception:
+        await client.send_message(chat_id=user_id, text=" cancellation/timeout: <blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
+
+
+@Bot.on_callback_query(filters.regex("^action_reset_dlt_timer$"))
+async def action_reset_dlt_timer(client: Client, callback_query: CallbackQuery):
+    await callback_query.answer()
+    await db.set_del_timer(0)
+    await panel_dlt_timer(client, callback_query)
+
+
+# ==============================================================================
 # 🛡️ PROTECT CONTENT MANAGEMENT
 # ==============================================================================
 
@@ -99,7 +160,7 @@ async def panel_protect(client: Client, callback_query: CallbackQuery):
 
     caption = (
         "<blockquote><b>🛡️ Pʀᴏᴛᴇᴄᴛ Cᴏɴᴛᴇɴᴛ Sᴇᴛᴛɪɴɢs</b>\n\n"
-        f"<b>• Cᴜʀʀᴇɴᴛ Sᴛᴀᴛᴜs:</b> <code>{status_str}</code></blockquote>"
+        f"<b>• CᴜʀʀᴇɴT Sᴛᴀᴛᴜs:</b> <code>{status_str}</code></blockquote>"
     )
 
     buttons = InlineKeyboardMarkup([
@@ -179,7 +240,7 @@ async def action_set_start_msg(client: Client, callback_query: CallbackQuery):
     try:
         res = await client.listen(chat_id=user_id, timeout=300)
         if not res.text or res.text.startswith('/cancel'):
-            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟed</b></blockquote>", reply_markup=back_btn)
+            return await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
         new_text = res.text.html if hasattr(res.text, 'html') else res.text
         await db.update_bot_setting('start_msg', new_text)
@@ -491,7 +552,7 @@ async def action_set_plan_text(client: Client, callback_query: CallbackQuery):
             
         new_text = res.text.html if hasattr(res.text, 'html') else res.text
         await db.update_bot_setting('premium_plan_text', new_text)
-        await res.reply("<blockquote>✅ <b>Pʀᴇᴍɪᴜᴍ Pʟᴀɴ Tᴇxᴛ Uᴘᴅᴀᴛᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b></blockquote>", reply_markup=back_btn)
+        await res.reply("<blockquote>✅ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
     except Exception:
         await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
@@ -554,7 +615,7 @@ async def action_add_premium(client: Client, callback_query: CallbackQuery):
             await client.send_message(
                 chat_id=target_id,
                 text=(
-                    f"<blockquote>🎉 <b>Pʀᴇᴍɪᴜᴍ Aᴄᴛɪᴠᴀᴛᴇᴅ!</b>\n\n"
+                    f"<blockquote>🎉 <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b>\n\n"
                     f"Yᴏᴜ ʜᴀᴠᴇ ʀᴇᴄᴇɪᴠᴇᴅ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇss ғᴏʀ <code>{time_value} {time_unit}</code>.\n"
                     f"<b>E xᴘɪʀᴇs Oɴ:</b> <code>{expiration_time}</code></blockquote>"
                 )
@@ -976,7 +1037,7 @@ async def del_force_sub_cmd(client: Client, message: Message):
 async def list_force_sub_channels_cmd(client: Client, message: Message):
     channels = await db.show_channels()
     if not channels:
-        return await message.reply("<blockquote>❌ <b>Nᴏ ғᴏʀᴄᴇ-sᴜʙ ᴄʜᴀɴɴᴇʟs ғᴏᴜɴᴅ.</b></blockquote>")
+        return await message.reply("resources<blockquote>❌ <b>Nᴏ ғᴏʀᴄᴇ-sᴜʙ ᴄʜᴀɴɴᴇʟs ғᴏᴜɴᴅ.</b></blockquote>")
 
     res = "<b>⚡ Fᴏʀᴄᴇ-Sᴜʙ Cʜᴀɴɴᴇʟs Lɪsᴛ:</b>\n\n"
     for ch_id in channels:
