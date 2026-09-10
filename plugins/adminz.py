@@ -57,7 +57,7 @@ async def admin_settings_panel(client: Client, message: Message):
 async def cb_settings_handler(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     if user_id not in ADMINS:
-        return await callback_query.answer()
+        return await callback_query.answer("Unauthorized!", show_alert=True)
     
     await callback_query.answer()
     await send_main_settings_panel(callback_query)
@@ -70,7 +70,7 @@ async def send_main_settings_panel(message_or_query):
     )
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("🚀 Sᴛᴀʀᴛ Sᴇᴛᴛɪɴɢs", callback_data="panel_start_settings")],
-        [InlineKeyboardButton("🗑️ Aᴜᴛᴏ Dᴇʟᴇᴛᴇ Tɪᴍᴇʀ", callback_data="panel_dlt_timer")],
+        [InlineKeyboardButton("🗑️ Aᴜᴛᴏ Dᴇʟᴇᴛᴇ TɪᴍᴇR", callback_data="panel_dlt_timer")],
         [InlineKeyboardButton("💎 Pʀᴇᴍɪᴜᴍ Pʟᴀɴ", callback_data="panel_premium")],
         [InlineKeyboardButton("🪙 Tᴏᴋᴇɴ Vᴇʀɪғɪᴄᴀᴛɪᴏɴ", callback_data="panel_verify")],
         [InlineKeyboardButton("✍️ Cᴜsᴛᴏᴍ Cᴀᴘᴛɪᴏɴ", callback_data="panel_caption")],
@@ -95,7 +95,6 @@ async def send_main_settings_panel(message_or_query):
 async def panel_dlt_timer(client: Client, callback_query: CallbackQuery):
     await callback_query.answer()
     
-    # Dynamic database fetch
     duration = await db.get_del_timer()
     timer_str = f"{duration} Sᴇᴄᴏɴᴅs" if duration and duration > 0 else "Dɪsᴀʙʟᴇᴅ (0s)"
 
@@ -137,7 +136,7 @@ async def action_set_dlt_timer(client: Client, callback_query: CallbackQuery):
         else:
             await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Nᴜᴍʙᴇʀ! Pʟᴇᴀsᴇ enter a valid integer.</b></blockquote>", reply_markup=back_btn)
     except Exception:
-        await client.send_message(chat_id=user_id, text=" cancellation/timeout: <blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
+        await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ (Tɪᴍᴇᴏᴜᴛ)</b></blockquote>", reply_markup=back_btn)
 
 
 @Bot.on_callback_query(filters.regex("^action_reset_dlt_timer$"))
@@ -160,7 +159,7 @@ async def panel_protect(client: Client, callback_query: CallbackQuery):
 
     caption = (
         "<blockquote><b>🛡️ Pʀᴏᴛᴇᴄᴛ Cᴏɴᴛᴇɴᴛ Sᴇᴛᴛɪɴɢs</b>\n\n"
-        f"<b>• CᴜʀʀᴇɴT Sᴛᴀᴛᴜs:</b> <code>{status_str}</code></blockquote>"
+        f"<b>• Cᴜʀʀᴇɴᴛ Sᴛᴀᴛᴜs:</b> <code>{status_str}</code></blockquote>"
     )
 
     buttons = InlineKeyboardMarkup([
@@ -353,7 +352,7 @@ async def action_add_fsub(client: Client, callback_query: CallbackQuery):
 
     await client.send_message(
         chat_id=user_id,
-        text="<blockquote><b>Sᴇɴᴅ Cʜᴀɴɴᴇʟ ID ᴏʀ U sᴇʀɴᴀᴍᴇ...</b>\n\n<i>E xᴀᴍᴘʟᴇ: -1001234567890 ᴏʀ @MyChannel</i>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
+        text="<blockquote><b>Sᴇɴᴅ Cʜᴀɴɴᴇʟ ID ᴏʀ U sᴇʀɴᴀᴍᴇ...</b>\n\n<i>E xᴀᴍᴘʟE: -1001234567890 ᴏʀ @MyChannel</i>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
@@ -421,7 +420,7 @@ async def action_clean_req_menu(client: Client, callback_query: CallbackQuery):
         for ch_id in channels:
             buttons.append([InlineKeyboardButton(f"🧹 Cʟᴇᴀɴ ID: {ch_id}", callback_data=f"run_clean_req_{ch_id}")])
 
-    buttons.append([InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_fsub")])
+    buttons.append([InlineKeyboardButton("‹ Bᴀクー", callback_data="panel_fsub")])
     await callback_query.message.edit_text(
         "<blockquote><b>Sᴇʟᴇᴄᴛ ᴀ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴄʟᴇᴀɴ ɴᴏɴ-ʀᴇǫᴜᴇsᴛ ᴜsᴇʀs:</b></blockquote>",
         reply_markup=InlineKeyboardMarkup(buttons)
@@ -552,7 +551,7 @@ async def action_set_plan_text(client: Client, callback_query: CallbackQuery):
             
         new_text = res.text.html if hasattr(res.text, 'html') else res.text
         await db.update_bot_setting('premium_plan_text', new_text)
-        await res.reply("<blockquote>✅ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
+        await res.reply("<blockquote>✅ <b>Pʀᴇᴍɪᴜᴍ Pʟᴀɴ Tᴇxᴛ Uᴘᴅᴀᴛᴇᴅ!</b></blockquote>", reply_markup=back_btn)
     except Exception:
         await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
@@ -615,7 +614,7 @@ async def action_add_premium(client: Client, callback_query: CallbackQuery):
             await client.send_message(
                 chat_id=target_id,
                 text=(
-                    f"<blockquote>🎉 <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b>\n\n"
+                    f"<blockquote>🎉 <b>Cᴏɴɢʀᴀᴛᴜʟᴀᴛɪᴏɴs!</b>\n\n"
                     f"Yᴏᴜ ʜᴀᴠᴇ ʀᴇᴄᴇɪᴠᴇᴅ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇss ғᴏʀ <code>{time_value} {time_unit}</code>.\n"
                     f"<b>E xᴘɪʀᴇs Oɴ:</b> <code>{expiration_time}</code></blockquote>"
                 )
@@ -982,7 +981,7 @@ async def change_force_sub_mode_cmd(client: Client, message: Message):
     temp = await message.reply("<blockquote>Pʟᴇᴀsᴇ ᴡᴀɪᴛ ᴀ sᴇᴄ...</blockquote>", quote=True)
     channels = await db.show_channels()
     if not channels:
-        return await temp.edit("<blockquote>❌ <b>Nᴏ ғᴏʀᴄᴇ-sᴜʙ ᴄʜᴀɴɴᴇʟs ғᴏᴜɴᴅ.</b></blockquote>")
+        return await temp.edit("<blockquote>❌ <b>Nᴏ ғᴏʀᴄᴇ-sᴜʙ ᴄʜᴀɴɴᴇʟs ғᴏᴜɴ德.</b></blockquote>")
 
     buttons = []
     for ch_id in channels:
@@ -1037,7 +1036,7 @@ async def del_force_sub_cmd(client: Client, message: Message):
 async def list_force_sub_channels_cmd(client: Client, message: Message):
     channels = await db.show_channels()
     if not channels:
-        return await message.reply("resources<blockquote>❌ <b>Nᴏ ғᴏʀᴄᴇ-sᴜʙ ᴄʜᴀɴɴᴇʟs ғᴏᴜɴᴅ.</b></blockquote>")
+        return await message.reply("<blockquote>❌ <b>Nᴏ ғᴏʀᴄᴇ-sᴜʙ ᴄʜᴀɴɴᴇʟs ғᴏᴜɴᴅ.</b></blockquote>")
 
     res = "<b>⚡ Fᴏʀᴄᴇ-Sᴜʙ Cʜᴀɴɴᴇʟs Lɪsᴛ:</b>\n\n"
     for ch_id in channels:
