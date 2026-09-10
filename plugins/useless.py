@@ -28,7 +28,7 @@ from database.database import *
 
 #=====================================================================================##
 
-@Bot.on_message(filters.command('stats') & filters.user(ADMINS))
+@Bot.on_message(filters.command('stats') & filters.user(OWNER_ID))
 async def stats(bot: Bot, message: Message):
     now = datetime.now(timezone.utc)
     delta = now - bot.uptime
@@ -43,7 +43,7 @@ WAIT_MSG = "<b>Working....</b>"
 #=====================================================================================##
 
 
-@Bot.on_message(filters.command('users') & filters.private & filters.user(ADMINS))
+@Bot.on_message(filters.command('users') & filters.private & filters.user(OWNER_ID))
 async def get_users(client: Bot, message: Message):
     msg = await client.send_message(chat_id=message.chat.id, text=WAIT_MSG)
     users = await db.full_userbase()
@@ -53,7 +53,7 @@ async def get_users(client: Bot, message: Message):
 
 #AUTO-DELETE
 
-@Bot.on_message(filters.private & filters.command('dlt_time') & filters.user(ADMINS))
+@Bot.on_message(filters.private & filters.command('dlt_time') & filters.user(OWNER_ID))
 async def set_delete_time(client: Bot, message: Message):
     try:
         duration = int(message.command[1])
@@ -65,7 +65,7 @@ async def set_delete_time(client: Bot, message: Message):
     except (IndexError, ValueError):
         await message.reply("<b>Pʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴠᴀʟɪᴅ ᴅᴜʀᴀᴛɪᴏɴ ɪɴ sᴇᴄᴏɴᴅs.</b> Usage: /dlt_time {duration}")
 
-@Bot.on_message(filters.private & filters.command('check_dlt_time') & filters.user(ADMINS))
+@Bot.on_message(filters.private & filters.command('check_dlt_time') & filters.user(OWNER_ID))
 async def check_delete_time(client: Bot, message: Message):
     duration = await db.get_del_timer()
 
