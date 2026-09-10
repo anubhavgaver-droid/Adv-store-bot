@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import time
 import motor.motor_asyncio
 import config
 from config import (
@@ -102,33 +103,54 @@ class Rohit:
         users_docs = await self.banned_user_data.find({}, {'_id': 1}).to_list(length=None)
         return [doc['_id'] for doc in users_docs]
 
-    # ================= AUTO DELETE ENGINE & TIMER =================
+    # ================= DYNAMIC AUTO DELETE TIMER =================
     async def set_del_timer(self, value: int):        
-        await self.del_timer_data.update_one({'_id': 'auto_del_config'}, {'$set': {'value': value}}, upsert=True)
+        await self.settings_col.update_one(
+            {'_id': 'bot_settings'}, 
+            {'$set': {'auto_delete_timer': value}}, 
+            upsert=True
+        )
 
     async def get_del_timer(self) -> int:
-        data = await self.del_timer_data.find_one({'_id': 'auto_del_config'})
-        return data.get('value', 600) if data else 600
+        settings = await self.get_bot_settings()
+        return settings.get('auto_delete_timer', 600)
 
-    async def set_auto_delete_status(self, status: bool):
-        await self.del_timer_data.update_one({'_id': 'auto_del_config'}, {'$set': {'status': status}}, upsert=True)
+    async def set_auto_delete_status(self, mode: bool):
+        await self.settings_col.update_one(
+            {'_id': 'bot_settings'}, 
+            {'$set': {'auto_delete_mode': mode}}, 
+            upsert=True
+        )
 
     async def get_auto_delete_status(self) -> bool:
-        data = await self.del_timer_data.find_one({'_id': 'auto_del_config'})
-        return data.get('status', True) if data else True
+        settings = await self.get_bot_settings()
+        return settings.get('auto_delete_mode', True)
 
-    async def auto_delete_messages(self, client, chat_id: int, message_ids: list):
-        """Timer ke baad sent files/messages ko automatically delete karne ke liye utility"""
-        if not await self.get_auto_delete_status():
-            return
-            
+    async def save_message_for_deletion(self, chat_id: int, message_ids: list):
+        """Message delete request ko DB me dynamic timestamp ke sath register karta hai"""
         timer = await self.get_del_timer()
-        await asyncio.sleep(timer)
+        delete_at = time.time() + timer
+        await self.del_timer_data.insert_one({
+            'chat_id': chat_id,
+            'message_ids': message_ids,
+            'delete_at': delete_at
+        })
+
+    async def dynamic_auto_delete_handler(self, client, chat_id: int, message_ids: list):
+        """Live DB config read karke dynamically deletion wait/trigger karta hai"""
+        is_enabled = await self.get_auto_delete_status()
+        if not is_enabled:
+            return
+
+        # Fetch current dynamic timer live from DB settings
+        current_timer = await self.get_del_timer()
+        await asyncio.sleep(current_timer)
+
         try:
             await client.delete_messages(chat_id=chat_id, message_ids=message_ids)
-            logger.info(f"[AUTO-DELETE] Cleaned up messages {message_ids} in chat {chat_id}")
+            logger.info(f"[DYNAMIC DELETE] Successfully deleted messages {message_ids} in chat {chat_id}")
         except Exception as e:
-            logger.error(f"[AUTO-DELETE ERROR] Failed to delete messages {message_ids}: {e}")
+            logger.error(f"[DYNAMIC DELETE ERROR] {e}")
 
     # ================= CHANNEL MANAGEMENT =================
     async def channel_exist(self, channel_id: int) -> bool:
@@ -277,6 +299,8 @@ class Rohit:
             default_settings = {
                 '_id': 'bot_settings',
                 'verify_mode': True,
+                'auto_delete_mode': True,
+                'auto_delete_timer': 600,
                 'shortlink_url': SHORTLINK_URL,
                 'shortlink_api': SHORTLINK_API,
                 'tut_vid': TUT_VID,
