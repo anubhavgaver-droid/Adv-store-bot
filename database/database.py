@@ -1,4 +1,5 @@
 import logging
+import asyncio
 import motor.motor_asyncio
 import config
 from config import (
@@ -14,7 +15,6 @@ from config import (
     QR_PIC
 )
 
-# Optional config fallbacks
 PROTECT_CONTENT = getattr(config, 'PROTECT_CONTENT', False)
 BOT_USERNAME = getattr(config, 'BOT_USERNAME', 'SmartfilestorebyAcbot')
 
@@ -28,10 +28,10 @@ default_verify = {
     'link': ""
 }
 
-def new_user(id: int):
+def new_user(user_id: int) -> dict:
     return {
-        '_id': id,
-        'verify_status': default_verify
+        '_id': user_id,
+        'verify_status': default_verify.copy()
     }
 
 class Rohit:
@@ -52,7 +52,7 @@ class Rohit:
         self.rqst_fsub_Channel_data = self.database['request_forcesub_channel']
         self.multi_batches = self.database['multi_batches']
         self.settings_col = self.database['settings']
-        self.verify_tokens = self.database['verify_tokens'] # Added explicit token collection
+        self.verify_tokens = self.database['verify_tokens']
 
     # ================= USER DATA =================
     async def present_user(self, user_id: int) -> bool:
@@ -61,7 +61,7 @@ class Rohit:
 
     async def add_user(self, user_id: int):
         if not await self.present_user(user_id):
-            await self.user_data.insert_one({'_id': user_id})
+            await self.user_data.insert_one(new_user(user_id))
 
     async def full_userbase(self) -> list:
         user_docs = await self.user_data.find({}, {'_id': 1}).to_list(length=None)
@@ -102,13 +102,33 @@ class Rohit:
         users_docs = await self.banned_user_data.find({}, {'_id': 1}).to_list(length=None)
         return [doc['_id'] for doc in users_docs]
 
-    # ================= AUTO DELETE TIMER =================
+    # ================= AUTO DELETE ENGINE & TIMER =================
     async def set_del_timer(self, value: int):        
-        await self.del_timer_data.update_one({}, {'$set': {'value': value}}, upsert=True)
+        await self.del_timer_data.update_one({'_id': 'auto_del_config'}, {'$set': {'value': value}}, upsert=True)
 
     async def get_del_timer(self) -> int:
-        data = await self.del_timer_data.find_one({})
+        data = await self.del_timer_data.find_one({'_id': 'auto_del_config'})
         return data.get('value', 600) if data else 600
+
+    async def set_auto_delete_status(self, status: bool):
+        await self.del_timer_data.update_one({'_id': 'auto_del_config'}, {'$set': {'status': status}}, upsert=True)
+
+    async def get_auto_delete_status(self) -> bool:
+        data = await self.del_timer_data.find_one({'_id': 'auto_del_config'})
+        return data.get('status', True) if data else True
+
+    async def auto_delete_messages(self, client, chat_id: int, message_ids: list):
+        """Timer ke baad sent files/messages ko automatically delete karne ke liye utility"""
+        if not await self.get_auto_delete_status():
+            return
+            
+        timer = await self.get_del_timer()
+        await asyncio.sleep(timer)
+        try:
+            await client.delete_messages(chat_id=chat_id, message_ids=message_ids)
+            logger.info(f"[AUTO-DELETE] Cleaned up messages {message_ids} in chat {chat_id}")
+        except Exception as e:
+            logger.error(f"[AUTO-DELETE ERROR] Failed to delete messages {message_ids}: {e}")
 
     # ================= CHANNEL MANAGEMENT =================
     async def channel_exist(self, channel_id: int) -> bool:
@@ -189,12 +209,10 @@ class Rohit:
             return False  
 
     async def reqChannel_exist(self, channel_id: int) -> bool:
-        channel_ids = await self.show_channels()
-        return channel_id in channel_ids
+        return await self.channel_exist(channel_id)
 
     # ================= VERIFICATION MANAGEMENT =================
     async def save_verify_token(self, user_id: int, token: str):
-        """Saves dynamic verification token for Node.js proxy consumption"""
         await self.verify_tokens.delete_many({'user_id': user_id})
         await self.verify_tokens.insert_one({
             'user_id': user_id,
@@ -204,7 +222,7 @@ class Rohit:
 
     async def db_verify_status(self, user_id: int) -> dict:
         user = await self.user_data.find_one({'_id': user_id})
-        return user.get('verify_status', default_verify) if user else default_verify
+        return user.get('verify_status', default_verify.copy()) if user else default_verify.copy()
 
     async def db_update_verify_status(self, user_id: int, verify: dict):
         await self.user_data.update_one({'_id': user_id}, {'$set': {'verify_status': verify}})
@@ -271,7 +289,7 @@ class Rohit:
                 'qr_pic': QR_PIC,
                 'premium_plan_text': "",
                 'protect_content': PROTECT_CONTENT,
-                'bot_username': BOT_USERNAME # Added missing key for Node.js Express server
+                'bot_username': BOT_USERNAME
             }
             await self.settings_col.insert_one(default_settings)
             return default_settings
