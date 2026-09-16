@@ -1,12 +1,18 @@
+#
+# Copyright (C) 2025 by Codeflix-Bots@Github, < https://github.com/Codeflix-Bots >.
+#
+
 import io
 import asyncio
+import logging
 from datetime import datetime
 from pytz import timezone
 from pyrogram import Client, filters, enums
 from pyrogram.enums import ChatType, ChatMemberStatus
 from pyrogram.types import (
     Message, InlineKeyboardMarkup, InlineKeyboardButton, 
-    CallbackQuery, ForceReply, ChatMemberUpdated, ChatJoinRequest
+    CallbackQuery, ForceReply, ChatMemberUpdated, ChatJoinRequest,
+    LinkPreviewOptions
 )
 from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant
 from bot import Bot
@@ -14,6 +20,35 @@ from config import *
 from helper_func import admin
 from database.database import db
 from database.db_premium import add_premium, remove_premium, collection
+
+logger = logging.getLogger(__name__)
+
+# ==============================================================================
+# FIX PYROMOD MONKEY PATCHING (Pyrogram v2+ Compatibility)
+# ==============================================================================
+_orig_reply = Message.reply
+_orig_reply_text = Message.reply_text
+
+async def _clean_reply(self, *args, **kwargs):
+    kwargs.pop("quote", None)
+    if "disable_web_page_preview" in kwargs:
+        kwargs.pop("disable_web_page_preview")
+        kwargs["link_preview_options"] = LinkPreviewOptions(is_disabled=True)
+    return await _orig_reply(self, *args, **kwargs)
+
+async def _clean_reply_text(self, *args, **kwargs):
+    kwargs.pop("quote", None)
+    if "disable_web_page_preview" in kwargs:
+        kwargs.pop("disable_web_page_preview")
+        kwargs["link_preview_options"] = LinkPreviewOptions(is_disabled=True)
+    return await _orig_reply_text(self, *args, **kwargs)
+
+Message.reply = _clean_reply
+Message.reply_text = _clean_reply_text
+Message.patched_reply = _clean_reply
+Message.patched_reply_text = _clean_reply_text
+# ==============================================================================
+
 
 # ==============================================================================
 # 📩 JOIN REQUEST & CHAT MEMBER LISTENERS
@@ -81,10 +116,20 @@ async def send_main_settings_panel(message_or_query):
             InlineKeyboardButton("❌ Cʟᴏsᴇ", callback_data="close_panel")
         ]
     ])
+    
+    link_options = LinkPreviewOptions(is_disabled=True)
+
     if isinstance(message_or_query, CallbackQuery):
-        await message_or_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+        if message_or_query.message.photo:
+            try:
+                await message_or_query.message.delete()
+            except Exception:
+                pass
+            await message_or_query.message.reply_text(caption, reply_markup=buttons, link_preview_options=link_options)
+        else:
+            await message_or_query.message.edit_text(caption, reply_markup=buttons, link_preview_options=link_options)
     else:
-        await message_or_query.reply_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+        await message_or_query.reply_text(caption, reply_markup=buttons, link_preview_options=link_options)
 
 
 # ==============================================================================
@@ -109,7 +154,7 @@ async def panel_dlt_timer(client: Client, callback_query: CallbackQuery):
         [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
 
-    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+    await callback_query.message.edit_text(caption, reply_markup=buttons, link_preview_options=LinkPreviewOptions(is_disabled=True))
 
 
 @Bot.on_callback_query(filters.regex("^action_set_dlt_timer$"))
@@ -167,7 +212,7 @@ async def panel_protect(client: Client, callback_query: CallbackQuery):
         [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
 
-    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+    await callback_query.message.edit_text(caption, reply_markup=buttons, link_preview_options=LinkPreviewOptions(is_disabled=True))
 
 
 @Bot.on_callback_query(filters.regex("^action_toggle_protect$"))
@@ -210,7 +255,7 @@ async def panel_start_settings(client: Client, callback_query: CallbackQuery):
         [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
 
-    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+    await callback_query.message.edit_text(caption, reply_markup=buttons, link_preview_options=LinkPreviewOptions(is_disabled=True))
 
 
 @Bot.on_callback_query(filters.regex("^action_toggle_spoiler$"))
@@ -321,7 +366,7 @@ async def panel_fsub(client: Client, callback_query: CallbackQuery):
         f"<b>• Tᴏᴛᴀʟ Cʜᴀɴɴᴇʟs:</b> <code>{len(channels)}</code></blockquote>"
     )
 
-    await callback_query.message.edit_text(caption, reply_markup=InlineKeyboardMarkup(buttons), disable_web_page_preview=True)
+    await callback_query.message.edit_text(caption, reply_markup=InlineKeyboardMarkup(buttons), link_preview_options=LinkPreviewOptions(is_disabled=True))
 
 
 @Bot.on_callback_query(filters.regex(r"^toggle_rfs_"))
@@ -386,7 +431,7 @@ async def action_add_fsub(client: Client, callback_query: CallbackQuery):
                 f"<blockquote>✅ <b>Cʜᴀɴɴᴇʟ Aᴅᴅᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b>\n\n"
                 f"<b>• Tɪᴛʟᴇ:</b> <a href='{invite_link}'>{chat.title}</a>\n"
                 f"<b>• ID:</b> <code>{chat.id}</code></blockquote>",
-                disable_web_page_preview=True,
+                link_preview_options=LinkPreviewOptions(is_disabled=True),
                 reply_markup=back_btn
             )
         except Exception as e:
@@ -420,7 +465,7 @@ async def action_clean_req_menu(client: Client, callback_query: CallbackQuery):
         for ch_id in channels:
             buttons.append([InlineKeyboardButton(f"🧹 Cʟᴇᴀɴ ID: {ch_id}", callback_data=f"run_clean_req_{ch_id}")])
 
-    buttons.append([InlineKeyboardButton("‹ Bᴀクー", callback_data="panel_fsub")])
+    buttons.append([InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_fsub")])
     await callback_query.message.edit_text(
         "<blockquote><b>Sᴇʟᴇᴄᴛ ᴀ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴄʟᴇᴀɴ ɴᴏɴ-ʀᴇǫᴜᴇsᴛ ᴜsᴇʀs:</b></blockquote>",
         reply_markup=InlineKeyboardMarkup(buttons)
@@ -501,7 +546,7 @@ async def panel_premium(client: Client, callback_query: CallbackQuery):
         [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
 
-    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+    await callback_query.message.edit_text(caption, reply_markup=buttons, link_preview_options=LinkPreviewOptions(is_disabled=True))
 
 
 @Bot.on_callback_query(filters.regex("^action_toggle_premium$"))
@@ -529,7 +574,7 @@ async def panel_premium_text(client: Client, callback_query: CallbackQuery):
         [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_premium")]
     ])
 
-    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+    await callback_query.message.edit_text(caption, reply_markup=buttons, link_preview_options=LinkPreviewOptions(is_disabled=True))
 
 
 @Bot.on_callback_query(filters.regex("^action_set_plan_text$"))
@@ -760,7 +805,7 @@ async def action_set_qr(client: Client, callback_query: CallbackQuery):
 
     await client.send_message(
         chat_id=user_id,
-        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ ɴᴇᴡ QR Iᴍᴀɢᴇ URL...</b>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
+        text="<blockquote><b>Pʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ ɴᴇᴡ QR Iᴍᴀɢᴇ URL...</b>\n\n<i>E xᴀᴍᴘʟᴇ: https://telegra.ph/file/xxx.jpg</i>\n\n<i>/cancel - Cᴀɴᴄᴇʟ ᴘʀᴏᴄᴇss</i></blockquote>",
         reply_markup=ForceReply(selective=True)
     )
     try:
@@ -797,7 +842,7 @@ async def panel_verify(client: Client, callback_query: CallbackQuery):
         [status_btn],
         [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
-    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+    await callback_query.message.edit_text(caption, reply_markup=buttons, link_preview_options=LinkPreviewOptions(is_disabled=True))
 
 
 @Bot.on_callback_query(filters.regex("^panel_shortener$"))
@@ -816,7 +861,7 @@ async def panel_shortener(client: Client, callback_query: CallbackQuery):
         [InlineKeyboardButton("✏️ Sᴇᴛ Sʜᴏʀᴛʟɪɴᴋ", callback_data="action_set_shortlink"), InlineKeyboardButton("🗑️ Dᴇʟᴇᴛᴇ Sʜᴏʀᴛʟɪɴᴋ", callback_data="action_del_shortlink")],
         [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_verify")]
     ])
-    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+    await callback_query.message.edit_text(caption, reply_markup=buttons, link_preview_options=LinkPreviewOptions(is_disabled=True))
 
 
 @Bot.on_callback_query(filters.regex("^action_set_shortlink$"))
@@ -915,7 +960,7 @@ async def action_set_verify_time(client: Client, callback_query: CallbackQuery):
             await db.update_bot_setting('verify_expire', int(res.text.strip()))
             await res.reply("<blockquote>✅ <b>Vᴇʀɪғɪᴄᴀᴛɪᴏɴ Tɪᴍᴇ Uᴘᴅᴀᴛᴇᴅ!</b></blockquote>", reply_markup=back_btn)
         else:
-            await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Nᴜᴍʙᴇʀ!</b></blockquote>", reply_markup=back_btn)
+            await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ NᴜᴍʙᴇR!</b></blockquote>", reply_markup=back_btn)
     except Exception:
         await client.send_message(chat_id=user_id, text="<blockquote>❌ <b>Pʀᴏᴄᴇss Cᴀɴᴄᴇʟʟᴇᴅ</b></blockquote>", reply_markup=back_btn)
 
@@ -939,7 +984,7 @@ async def panel_caption(client: Client, callback_query: CallbackQuery):
         [InlineKeyboardButton("✏️ Sᴇᴛ Cᴀᴘᴛɪᴏɴ", callback_data="action_set_caption"), InlineKeyboardButton("🗑️ Dᴇʟᴇᴛᴇ Cᴀᴘᴛɪᴏɴ", callback_data="action_del_caption")],
         [InlineKeyboardButton("‹ Bᴀᴄᴋ", callback_data="panel_main")]
     ])
-    await callback_query.message.edit_text(caption, reply_markup=buttons, disable_web_page_preview=True)
+    await callback_query.message.edit_text(caption, reply_markup=buttons, link_preview_options=LinkPreviewOptions(is_disabled=True))
 
 
 @Bot.on_callback_query(filters.regex("^action_set_caption$"))
@@ -981,7 +1026,7 @@ async def change_force_sub_mode_cmd(client: Client, message: Message):
     temp = await message.reply("<blockquote>Pʟᴇᴀsᴇ ᴡᴀɪᴛ ᴀ sᴇᴄ...</blockquote>", quote=True)
     channels = await db.show_channels()
     if not channels:
-        return await temp.edit("<blockquote>❌ <b>Nᴏ ғᴏʀᴄᴇ-sᴜʙ ᴄʜᴀɴɴᴇʟs ғᴏᴜɴ德.</b></blockquote>")
+        return await temp.edit("<blockquote>❌ <b>Nᴏ ғᴏʀᴄᴇ-sᴜʙ ᴄʜᴀɴɴᴇʟs ғᴏᴜɴᴅ.</b></blockquote>")
 
     buttons = []
     for ch_id in channels:
