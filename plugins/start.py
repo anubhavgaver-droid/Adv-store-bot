@@ -13,8 +13,35 @@ from pyrogram.enums import ParseMode, ChatAction
 from pyrogram.types import (
     Message, InlineKeyboardMarkup, InlineKeyboardButton, 
     CallbackQuery, ReplyKeyboardMarkup, ChatInviteLink, ChatPrivileges,
-    WebAppInfo
+    WebAppInfo, LinkPreviewOptions
 )
+
+# ==============================================================================
+# FIX PYROMOD MONKEY PATCHING (Pyrogram v2+ Compatibility)
+# ==============================================================================
+_orig_reply = Message.reply
+_orig_reply_text = Message.reply_text
+
+async def _clean_reply(self, *args, **kwargs):
+    kwargs.pop("quote", None)
+    if "disable_web_page_preview" in kwargs:
+        kwargs.pop("disable_web_page_preview")
+        kwargs["link_preview_options"] = LinkPreviewOptions(is_disabled=True)
+    return await _orig_reply(self, *args, **kwargs)
+
+async def _clean_reply_text(self, *args, **kwargs):
+    kwargs.pop("quote", None)
+    if "disable_web_page_preview" in kwargs:
+        kwargs.pop("disable_web_page_preview")
+        kwargs["link_preview_options"] = LinkPreviewOptions(is_disabled=True)
+    return await _orig_reply_text(self, *args, **kwargs)
+
+Message.reply = _clean_reply
+Message.reply_text = _clean_reply_text
+Message.patched_reply = _clean_reply
+Message.patched_reply_text = _clean_reply_text
+# ==============================================================================
+
 from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant, MessageNotModified
 from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated, MessageDeleteForbidden
 from bot import Bot
@@ -28,28 +55,7 @@ from plugins.adminz import send_main_settings_panel
 
 logger = logging.getLogger(__name__)
 
-# ==================== GLOBAL QUOTE=FALSE PATCH ====================
-original_reply = Message.reply
-async def patched_reply(self, *args, **kwargs):
-    kwargs.setdefault('quote', False)
-    return await original_reply(self, *args, **kwargs)
-Message.reply = patched_reply
-
-original_reply_text = Message.reply_text
-async def patched_reply_text(self, *args, **kwargs):
-    kwargs.setdefault('quote', False)
-    return await original_reply_text(self, *args, **kwargs)
-Message.reply_text = patched_reply_text
-
-original_reply_photo = Message.reply_photo
-async def patched_reply_photo(self, *args, **kwargs):
-    kwargs.setdefault('quote', False)
-    return await original_reply_photo(self, *args, **kwargs)
-Message.reply_photo = patched_reply_photo
-# ==================================================================
-
 BAN_SUPPORT = f"{BAN_SUPPORT}"
-
 cancel_tasks = {}
 
 def get_db_channel_id(client: Client):
@@ -113,9 +119,6 @@ async def start_command(client: Client, message: Message):
         if base64_string.startswith("mbatch_") or base64_string.startswith("batch_"):
             return await handle_multi_batch_start(client, message, base64_string)
 
-        # ----------------------------------------------------------------------
-        # DYNAMIC ANTI-BYPASS VERIFICATION ENGINE (MINI APP INTEGRATED)
-        # ----------------------------------------------------------------------
         verify_status = await db.get_verify_status(user_id)
 
         verify_mode = bot_settings.get('verify_mode', True)
@@ -127,7 +130,6 @@ async def start_command(client: Client, message: Message):
 
         bot_username = getattr(getattr(client, 'me', None), 'username', None) or "SmartfilestorebyAcbot"
 
-        # Sync Shortener Settings for Express Proxy
         try:
             await db.settings_col.update_one(
                 {"_id": "bot_settings"},
@@ -159,7 +161,7 @@ async def start_command(client: Client, message: Message):
 
                 btn = [[InlineKeyboardButton("🚀 Gᴇᴛ Fɪʟᴇ Nᴏᴡ", url=f"https://t.me/{bot_username}?start={file_id}")]]
                 
-                return await message.reply(
+                return await message.reply_text(
                     f"<blockquote>✅ <b>Tᴏᴋᴇɴ Vᴇʀɪғɪᴇᴅ!</b>\n\nVᴀʟɪᴅ Fᴏʀ: {get_exp_time(verify_expire)}\n\n"
                     "Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴ Bᴇʟᴏᴡ Tᴏ Gᴇᴛ Yᴏᴜʀ Fɪʟᴇ 👇</blockquote>",
                     reply_markup=InlineKeyboardMarkup(btn),
@@ -167,7 +169,8 @@ async def start_command(client: Client, message: Message):
                 )
 
             if not verify_status['is_verified'] and not is_premium:
-                token = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+                token_length = random.randint(10, 12)
+                token = ''.join(random.choices(string.ascii_letters + string.digits, k=token_length))
                 
                 try:
                     await db.save_verify_token(user_id, token)
@@ -178,23 +181,21 @@ async def start_command(client: Client, message: Message):
                 
                 render_verify_link = f"{render_domain.rstrip('/')}/verify?token={token}"
 
-                # 🚀 Mini App WebAppInfo Button Integration
                 btn = [
                     [
                         InlineKeyboardButton("• Vᴇʀɪғʏ Nᴏᴡ •", web_app=WebAppInfo(url=render_verify_link)),
                         InlineKeyboardButton("• Tᴜᴛᴏʀɪᴀʟ •", url=tut_vid)
                     ],
                     [
-                        InlineKeyboardButton("• Bᴜʏ Pʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)
+                        InlineKeyboardButton("• Bᴜʏ PʀᴇᴍɪᴜM •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)
                     ]
                 ]
-                return await message.reply(
+                return await message.reply_text(
                     f"<blockquote><b>Yᴏᴜʀ Tᴏᴋᴇɴ Hᴀs E xᴘɪʀᴇᴅ. Pʟᴇᴀsᴇ Rᴇғʀᴇsʜ Yᴏᴜʀ Tᴏᴋᴇɴ Tᴏ Cᴏɴᴛɪɴᴜᴇ..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(verify_expire)}</blockquote>",
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=protect_content_val
                 )
 
-        # Standard Base64 Processing
         try:
             decoded_str = await decode(base64_string)
             argument = decoded_str.split("-")
@@ -226,7 +227,7 @@ async def start_command(client: Client, message: Message):
             [InlineKeyboardButton("🛠️ Dᴇᴠᴇʟᴏᴘᴇʀ", url="https://t.me/HDFILM0900_BOT", style=enums.ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("🌀 Cᴀɴᴄᴇʟ 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)]
         ])
-        temp_msg = await message.reply("<blockquote><b>🔺 Pʟᴇᴀsᴇ Wᴀɪᴛ...</b></blockquote>", reply_markup=wait_markup)
+        temp_msg = await message.reply_text("<blockquote><b>🔺 Pʟᴇᴀsᴇ Wᴀɪᴛ...</b></blockquote>", reply_markup=wait_markup)
         
         try:
             messages = await get_messages(client, ids)
@@ -291,11 +292,11 @@ async def start_command(client: Client, message: Message):
             pass
 
         if was_cancelled:
-            await message.reply_text("<blockquote>❌ <b>Fɪʟᴇ Dᴇʟɪᴠᴇʀʏ Hᴀs Bᴇᴇɴ Cᴀɴᴄᴇʟʟᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ.</b></blockquote>")
+            await message.reply_text("<blockquote>❌ <b>Fɪʟᴇ Dᴇʟɪᴠᴇʀʏ Hᴀs Bᴇᴇɴ CᴀɴᴄᴇʟʟᴇD Sᴜᴄᴄᴇssғᴜʟʟʏ.</b></blockquote>")
             return
 
         if FILE_AUTO_DELETE > 0:
-            notification_msg = await message.reply(
+            notification_msg = await message.reply_text(
                 f"<blockquote><b>Tʜɪs Fɪʟᴇ Wɪʟʟ Bᴇ Dᴇʟᴇᴛᴇᴅ Iɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ Sᴀᴠᴇ Oʀ Fᴏʀᴡᴀʀᴅ Iᴛ Tᴏ Yᴏᴜʀ Sᴀᴠᴇᴅ MᴇssᴀɢES Bᴇғᴏʀᴇ Iᴛ Gᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b></blockquote>"
             )
 
@@ -388,13 +389,13 @@ async def start_command(client: Client, message: Message):
                     await message.reply_text(
                         text=formatted_caption,
                         reply_markup=reply_markup,
-                        disable_web_page_preview=True
+                        link_preview_options=LinkPreviewOptions(is_disabled=True)
                     )
         else:
             await message.reply_text(
                 text=formatted_caption,
                 reply_markup=reply_markup,
-                disable_web_page_preview=True
+                link_preview_options=LinkPreviewOptions(is_disabled=True)
             )
         return
 
@@ -425,7 +426,6 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
         db_channel_id = abs(get_db_channel_id(client))
         bot_username = getattr(getattr(client, 'me', None), 'username', None) or "SmartfilestorebyAcbot"
 
-        # 1. Direct Deep-Link Inline Buttons Prepare Karein
         temp_buttons = []
         for item in ranges:
             batch_hash = item.get("base64_hash", "")
@@ -438,7 +438,6 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
             batch_url = f"https://t.me/{bot_username}?start={batch_hash}"
             temp_buttons.append(InlineKeyboardButton(f"📺 {item['title']}", url=batch_url))
 
-        # 2. 2x2 Inline Grid Format Structure
         keyboard = []
         for i in range(0, len(temp_buttons), 2):
             keyboard.append(temp_buttons[i:i + 2])
@@ -448,7 +447,7 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
         mbatch_msg = await message.reply_text(
             f"<blockquote>🎬 <b>Mᴜʟᴛɪ-Bᴀᴛᴄʜ Eᴘɪsᴏᴅᴇs:</b> <code>{batch_id.upper()}</code>\n\n"
             f"👇 <b>Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴs Bᴇʟᴏᴡ Tᴏ Gᴇᴛ Yᴏᴜʀ Eᴘɪsᴏᴅᴇs:</b>\n\n"
-            f"⏳ <i>Tʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇᴅ ɪɴ 1 ᴍɪɴᴜᴛE.</i></blockquote>",
+            f"⏳ <i>Tʜɪs ᴍᴇssᴀɢE ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇᴅ ɪɴ 1 ᴍɪɴᴜᴛE.</i></blockquote>",
             reply_markup=markup
         )
 
@@ -474,7 +473,6 @@ async def handle_text_button_click(client: Client, message: Message):
     if not await is_subscribed(client, user_id):
         return await not_joined(client, message)
 
-    # Search title matches across database multi-batch entries
     try:
         all_batches = await db.get_all_multi_batches() if hasattr(db, "get_all_multi_batches") else []
         for batch in all_batches:
@@ -523,7 +521,7 @@ async def cancel_delivery_callback(client: Client, callback_query: CallbackQuery
 chat_data_cache = {}
 
 async def not_joined(client: Client, message: Message):
-    temp = await message.reply("<blockquote><b><i>Cʜᴇᴄᴋɪɴɢ Sᴜʙsᴄʀɪᴘᴛɪᴏɴ...</i></b></blockquote>")
+    temp = await message.reply_text("<blockquote><b><i>Cʜᴇᴄᴋɪɴɢ Sᴜʙsᴄʀɪᴘᴛɪᴏɴ...</i></b></blockquote>")
     user_id = message.from_user.id
     buttons = []
     count = 0
@@ -566,7 +564,7 @@ async def not_joined(client: Client, message: Message):
 
                 except Exception as e:
                     logger.error(f"Error with chat {chat_id}: {e}")
-                    try: return await temp.edit("<blockquote><b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ Dᴇᴠᴇʟᴏᴘᴇʀ @rohit_1888</i></b></blockquote>")
+                    try: return await temp.edit("<blockquote><b><i>! EʀʀᴏR, Cᴏɴᴛᴀᴄᴛ Dᴇᴠᴇʟᴏᴘᴇʀ @rohit_1888</i></b></blockquote>")
                     except Exception: return
 
         try:
@@ -582,7 +580,7 @@ async def not_joined(client: Client, message: Message):
         await message.reply_photo(
             photo=FORCE_PIC,
             caption=f"<blockquote>{FORCE_MSG.format(first=message.from_user.first_name, last=message.from_user.last_name if message.from_user.last_name else '', username=f'@{message.from_user.username}' if message.from_user.username else '', mention=message.from_user.mention, id=message.from_user.id)}</blockquote>",
-            reply_markup=InlineKeyboardMarkup(buttons),
+            reply_markup=InlineKeyboardMarkup(buttons)
         )
 
     except Exception as e:
@@ -595,7 +593,7 @@ async def not_joined(client: Client, message: Message):
 async def check_plan(client: Client, message: Message):
     user_id = message.from_user.id  
     status_message = await check_user_plan(user_id)
-    await message.reply(f"<blockquote>{status_message}</blockquote>")
+    await message.reply_text(f"<blockquote>{status_message}</blockquote>")
 
 
 @Bot.on_message(filters.command('addpremium') & filters.private & admin)
@@ -625,7 +623,7 @@ async def add_premium_user_command(client: Client, msg: Message):
         expiration_time = await add_premium(user_id, time_value, time_unit)
 
         await msg.reply_text(
-            f"<blockquote>✅ <b>Uꜱᴇʀ <code>{user_id}</code> Aᴅᴅᴇᴅ As A Pʀᴇᴍɪᴜᴍ Uꜱᴇʀ Fᴏʀ {time_value} {time_unit}.</b>\n"
+            f"<blockquote>✅ <b>Uꜱᴇʀ <code>{user_id}</code> Aᴅᴅᴇᴅ As A PʀᴇᴍɪᴜM Uꜱᴇʀ Fᴏʀ {time_value} {time_unit}.</b>\n"
             f"<b>E xᴘɪʀᴀᴛɪᴏɴ Tɪᴍᴇ:</b> <code>{expiration_time}</code></blockquote>"
         )
 
@@ -642,7 +640,7 @@ async def add_premium_user_command(client: Client, msg: Message):
             pass
 
     except ValueError:
-        await msg.reply_text("<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Iɴᴘᴜᴛ. Pʟᴇᴀsᴇ Eɴsᴜʀᴇ Uꜱᴇʀ ID Aɴᴅ Tɪᴍᴇ Vᴀʟᴜᴇ Aʀᴇ Nᴜᴍʙᴇʀs.</b></blockquote>")
+        await msg.reply_text("<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Iɴᴘᴜᴛ. Pʟᴇᴀsᴇ Eɴsᴜʀᴇ Uꜱᴇʀ ID Aɴᴅ Tɪᴍᴇ Vᴀʟᴜᴇ Aʀᴇ NᴜᴍʙᴇRs.</b></blockquote>")
     except Exception as e:
         await msg.reply_text(f"<blockquote>⚠️ <b>Aɴ EʀʀᴏR Oᴄᴄᴜʀʀᴇᴅ:</b> <code>{str(e)}</code></blockquote>")
 
@@ -657,7 +655,7 @@ async def pre_remove_user(client: Client, msg: Message):
         await remove_premium(user_id)
         await msg.reply_text(f"<blockquote>✅ <b>Uꜱᴇʀ <code>{user_id}</code> Hᴀs Bᴇᴇɴ Rᴇᴍᴏᴠᴇᴅ.</b></blockquote>")
     except ValueError:
-        await msg.reply_text("<blockquote>⚠️ <b>Uꜱᴇʀ ID Mᴜsᴛ Bᴇ Aɴ IɴᴛᴇGFᴇʀ Oʀ Nᴏᴛ Aᴠᴀɪʟᴀʙʟᴇ Iɴ Dᴀᴛᴀʙᴀsᴇ.</b></blockquote>")
+        await msg.reply_text("<blockquote>⚠️ <b>Uꜱᴇʀ ID Mᴜsᴛ Bᴇ Aɴ IɴᴛᴇGFᴇʀ Oʀ Nᴏᴛ Aᴠᴀɪʟᴀʙʟᴇ Iɴ DᴀᴛᴀBᴀsᴇ.</b></blockquote>")
 
 
 @Bot.on_message(filters.command('premium_users') & filters.private & admin)
@@ -719,4 +717,4 @@ async def total_verify_count_cmd(client: Client, message: Message):
 @Bot.on_message(filters.command('commands') & filters.private & admin)
 async def bcmd(bot: Bot, message: Message):        
     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("• Cʟᴏsᴇ •", callback_data="close")]])
-    await message.reply(text=f"<blockquote>{CMD_TXT}</blockquote>", reply_markup=reply_markup, quote=True)
+    await message.reply_text(text=f"<blockquote>{CMD_TXT}</blockquote>", reply_markup=reply_markup)
