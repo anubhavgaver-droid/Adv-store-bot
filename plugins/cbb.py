@@ -4,7 +4,10 @@
 
 import logging
 from pyrogram import Client, enums
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaPhoto
+from pyrogram.types import (
+    Message, InlineKeyboardMarkup, InlineKeyboardButton, 
+    CallbackQuery, InputMediaPhoto, LinkPreviewOptions
+)
 from pyrogram.errors import MessageNotModified, FloodWait
 from bot import Bot
 from config import *
@@ -13,12 +16,41 @@ from plugins.adminz import send_main_settings_panel
 
 logger = logging.getLogger(__name__)
 
+# ==============================================================================
+# FIX PYROMOD MONKEY PATCHING (Pyrogram v2+ Compatibility)
+# ==============================================================================
+_orig_reply = Message.reply
+_orig_reply_text = Message.reply_text
+
+async def _clean_reply(self, *args, **kwargs):
+    kwargs.pop("quote", None)
+    if "disable_web_page_preview" in kwargs:
+        kwargs.pop("disable_web_page_preview")
+        kwargs["link_preview_options"] = LinkPreviewOptions(is_disabled=True)
+    return await _orig_reply(self, *args, **kwargs)
+
+async def _clean_reply_text(self, *args, **kwargs):
+    kwargs.pop("quote", None)
+    if "disable_web_page_preview" in kwargs:
+        kwargs.pop("disable_web_page_preview")
+        kwargs["link_preview_options"] = LinkPreviewOptions(is_disabled=True)
+    return await _orig_reply_text(self, *args, **kwargs)
+
+Message.reply = _clean_reply
+Message.reply_text = _clean_reply_text
+Message.patched_reply = _clean_reply
+Message.patched_reply_text = _clean_reply_text
+# ==============================================================================
+
+
 # ==================== SAFE MESSAGE EDIT HELPER ====================
 async def safe_edit_text(message: Message, text: str, reply_markup=None, disable_web_page_preview=True):
     """
     Safely edits text whether the original message was a Photo or Text message.
     Prevents Telegram API errors when switching media types.
     """
+    link_options = LinkPreviewOptions(is_disabled=True) if disable_web_page_preview else None
+    
     try:
         if message.photo or message.video or message.document:
             await message.edit_caption(
@@ -28,7 +60,7 @@ async def safe_edit_text(message: Message, text: str, reply_markup=None, disable
         else:
             await message.edit_text(
                 text=text,
-                disable_web_page_preview=disable_web_page_preview,
+                link_preview_options=link_options,
                 reply_markup=reply_markup
             )
     except MessageNotModified:
@@ -40,7 +72,7 @@ async def safe_edit_text(message: Message, text: str, reply_markup=None, disable
             pass
         await message.reply_text(
             text=text,
-            disable_web_page_preview=disable_web_page_preview,
+            link_preview_options=link_options,
             reply_markup=reply_markup
         )
 
@@ -158,7 +190,7 @@ async def cb_handler(client: Bot, query: CallbackQuery):
                     chat_id=query.message.chat.id,
                     text=caption,
                     reply_markup=buttons,
-                    disable_web_page_preview=True
+                    link_preview_options=LinkPreviewOptions(is_disabled=True)
                 )
             else:
                 await safe_edit_text(
@@ -216,7 +248,7 @@ async def cb_handler(client: Bot, query: CallbackQuery):
             f"● {PRICE2} Fᴏʀ 1 Mᴏɴᴛʜ Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
             f"● {PRICE3} Fᴏʀ 3 Mᴏɴᴛʜs Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
             f"● {PRICE4} Fᴏʀ 6 Mᴏɴᴛʜs Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
-            f"● {PRICE5} Fᴏʀ 1 Yᴇᴀʀ Mᴇᴍʙᴇʀsʜɪᴘ\n"
+            f"● {PRICE5} Fᴏʀ 1 YᴇᴀR Mᴇᴍʙᴇʀsʜɪᴘ\n"
         )
 
         final_plan_text = plan_text if (plan_text and plan_text.strip()) else default_text
@@ -225,7 +257,7 @@ async def cb_handler(client: Bot, query: CallbackQuery):
             f"<blockquote>{final_plan_text}\n\n"
             f"💵 <b>UPI ID:</b> <code>{upi_id}</code>\n\n"
             f"♻️ AғᴛᴇR Pᴀʏᴍᴇɴᴛ Yᴏᴜ Wɪʟʟ Gᴇᴛ Iɴsᴛᴀɴᴛ Mᴇᴍʙᴇʀsʜɪᴘ\n\n"
-            f"‼️ Mᴜsᴛ Sᴇɴᴅ Sᴄʀᴇᴇɴsʜᴏᴛ Aғᴛᴇʀ Pᴀʏᴍᴇɴᴛ.</blockquote>"
+            f"‼️ Mᴜsᴛ Sᴇɴᴅ Sᴄʀᴇᴇɴsʜᴏᴛ AғᴛᴇR Pᴀʏᴍᴇɴᴛ.</blockquote>"
         )
 
         reply_markup = InlineKeyboardMarkup([
@@ -244,13 +276,13 @@ async def cb_handler(client: Bot, query: CallbackQuery):
                 await query.message.reply_text(
                     text=caption,
                     reply_markup=reply_markup,
-                    disable_web_page_preview=True
+                    link_preview_options=LinkPreviewOptions(is_disabled=True)
                 )
         else:
             await query.message.reply_text(
                 text=caption,
                 reply_markup=reply_markup,
-                disable_web_page_preview=True
+                link_preview_options=LinkPreviewOptions(is_disabled=True)
             )
 
     elif data == "close":
