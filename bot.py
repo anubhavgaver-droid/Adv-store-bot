@@ -1,4 +1,3 @@
-
 # Don't Remove Credit @CodeFlix_Bots, @rohit_1888
 # Ask Doubt on telegram @CodeflixSupport
 #
@@ -41,8 +40,6 @@ async def daily_reset_task():
         pass  
 
 scheduler.add_job(daily_reset_task, "cron", hour=0, minute=0)
-#scheduler.start()
-
 
 name ="""
  BY CODEFLIX BOTS
@@ -101,11 +98,12 @@ class Bot(Client):
         self.username = usr_bot_me.username
         self.LOGGER(__name__).info(f"Bot Running..! Made by @Codeflix_Bots")   
 
-        # Start Web Server
-        app = web.AppRunner(await web_server())
+        # Start Web Server with Bot Instance Attachment
+        app_web = await web_server()
+        app_web['bot'] = self
+        app = web.AppRunner(app_web)
         await app.setup()
-        await web.TCPSite(app, "0.0.0.0", PORT).start()
-
+        await web.TCPSite(app, "0.0.0.0", int(PORT)).start()
 
         try: await self.send_message(OWNER_ID, text = f"<b><blockquote> Bᴏᴛ Rᴇsᴛᴀʀᴛᴇᴅ by @Codeflix_Bots</blockquote></b>")
         except: pass
@@ -125,12 +123,3 @@ class Bot(Client):
             self.LOGGER(__name__).info("Shutting down...")
         finally:
             loop.run_until_complete(self.stop())
-
-#
-# Copyright (C) 2025 by Codeflix-Bots@Github, < https://github.com/Codeflix-Bots >.
-#
-# This file is part of < https://github.com/Codeflix-Bots/FileStore > project,
-# and is released under the MIT License.
-# Please see < https://github.com/Codeflix-Bots/FileStore/blob/master/LICENSE >
-#
-# All rights reserved.
