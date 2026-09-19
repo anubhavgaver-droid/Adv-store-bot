@@ -16,31 +16,6 @@ from plugins.adminz import send_main_settings_panel
 
 logger = logging.getLogger(__name__)
 
-# ==============================================================================
-# FIX PYROMOD MONKEY PATCHING (Pyrogram v2+ Compatibility)
-# ==============================================================================
-_orig_reply = Message.reply
-_orig_reply_text = Message.reply_text
-
-async def _clean_reply(self, *args, **kwargs):
-    kwargs.pop("quote", None)
-    if "disable_web_page_preview" in kwargs:
-        kwargs.pop("disable_web_page_preview")
-        kwargs["link_preview_options"] = LinkPreviewOptions(is_disabled=True)
-    return await _orig_reply(self, *args, **kwargs)
-
-async def _clean_reply_text(self, *args, **kwargs):
-    kwargs.pop("quote", None)
-    if "disable_web_page_preview" in kwargs:
-        kwargs.pop("disable_web_page_preview")
-        kwargs["link_preview_options"] = LinkPreviewOptions(is_disabled=True)
-    return await _orig_reply_text(self, *args, **kwargs)
-
-Message.reply = _clean_reply
-Message.reply_text = _clean_reply_text
-Message.patched_reply = _clean_reply
-Message.patched_reply_text = _clean_reply_text
-# ==============================================================================
 
 
 # ==================== SAFE MESSAGE EDIT HELPER ====================
