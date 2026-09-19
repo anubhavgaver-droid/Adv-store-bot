@@ -13,7 +13,7 @@
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #06090e; /* Deep Obsidian Black Background */
+      background: #06090e;
       color: #f0f6fc;
       min-height: 100vh;
       display: flex;
@@ -25,7 +25,7 @@
       position: relative;
     }
 
-    /* Vibrant Ambient Smokey Background Glows */
+    /* Ambient Smokey Background Orbs */
     .smoke-bg-1 {
       position: absolute;
       width: 320px;
@@ -58,12 +58,12 @@
     .glass-card {
       position: relative;
       z-index: 1;
-      background: rgba(13, 17, 23, 0.7);
+      background: rgba(13, 17, 23, 0.75);
       backdrop-filter: blur(30px) saturate(200%);
       -webkit-backdrop-filter: blur(30px) saturate(200%);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 32px;
-      padding: 32px 24px;
+      padding: 28px 22px;
       width: 100%;
       max-width: 380px;
       text-align: center;
@@ -74,9 +74,9 @@
     /* Rotating Album Artwork */
     .album-art-wrap {
       position: relative;
-      width: 125px;
-      height: 125px;
-      margin: 0 auto 20px auto;
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 18px auto;
     }
     .album-art {
       width: 100%;
@@ -98,14 +98,13 @@
 
     /* Title & Notice Styling */
     .file-title {
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 700;
       color: #ffffff;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       word-break: break-word;
       line-height: 1.4;
       text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
-      letter-spacing: 0.3px;
     }
 
     .notice {
@@ -116,29 +115,107 @@
       padding: 6px 16px;
       border-radius: 50px;
       display: inline-block;
-      margin-bottom: 22px;
+      margin-bottom: 20px;
       border: 1px solid rgba(239, 68, 68, 0.3);
       letter-spacing: 0.5px;
-      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.1);
     }
 
-    audio {
-      width: 100%;
-      margin-bottom: 22px;
-      filter: invert(0.92) hue-rotate(185deg);
+    /* Custom HD Running Time & Progress Controls */
+    .player-controls-wrap {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 14px 16px;
+      margin-bottom: 18px;
+    }
+
+    .progress-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .time-stamp {
+      font-size: 12px;
+      color: #38bdf8;
+      font-weight: 600;
+      min-width: 38px;
+    }
+
+    .progress-bar {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.15);
       outline: none;
+      cursor: pointer;
     }
 
-    /* Glossy VIP Skip Controls */
+    .progress-bar::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 10px #38bdf8;
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+
+    .progress-bar::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .main-btn-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 10px;
+    }
+
+    .btn-play-pause {
+      background: linear-gradient(135deg, #00d2ff, #0072ff);
+      border: none;
+      color: #fff;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0, 210, 255, 0.4);
+      transition: transform 0.2s ease;
+    }
+
+    .btn-play-pause:active {
+      transform: scale(0.92);
+    }
+
+    .btn-mute {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    /* Glossy Skip Controls with Continuous Shine Effect */
     .controls {
       display: flex;
       justify-content: center;
       gap: 16px;
-      margin-bottom: 22px;
+      margin-bottom: 20px;
     }
 
     .btn-skip {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%);
+      position: relative;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
       color: #38bdf8;
       border: 1px solid rgba(56, 189, 248, 0.35);
       padding: 12px 24px;
@@ -147,78 +224,85 @@
       font-weight: 800;
       cursor: pointer;
       backdrop-filter: blur(12px);
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
       display: flex;
       align-items: center;
       gap: 8px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4),
-                  inset 0 1px 1px rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s ease;
+    }
+
+    /* Shining Sweep Animation */
+    .btn-skip::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -150%;
+      width: 80%;
+      height: 200%;
+      background: linear-gradient(
+        60deg, 
+        rgba(255, 255, 255, 0) 20%, 
+        rgba(255, 255, 255, 0.35) 50%, 
+        rgba(255, 255, 255, 0) 80%
+      );
+      transform: rotate(25deg);
+      animation: shineSweep 3.5s infinite ease-in-out;
+    }
+
+    @keyframes shineSweep {
+      0% { left: -150%; }
+      20% { left: 150%; }
+      100% { left: 150%; }
     }
 
     .btn-skip:active {
       transform: scale(0.92);
       background: rgba(56, 189, 248, 0.25);
-      border-color: rgba(56, 189, 248, 0.6);
     }
 
-    /* Premium Speed Controller Box */
+    /* Speed Controller Box */
     .speed-container {
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 12px 18px;
-      border-radius: 20px;
+      padding: 10px 16px;
+      border-radius: 18px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 13.5px;
-      font-weight: 600;
+      font-size: 13px;
       color: #94a3b8;
-      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
     }
 
     select {
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
       color: #38bdf8;
       border: 1px solid rgba(56, 189, 248, 0.4);
-      padding: 8px 14px;
-      border-radius: 12px;
+      padding: 6px 12px;
+      border-radius: 10px;
       font-weight: 700;
-      font-size: 13px;
+      font-size: 12.5px;
       outline: none;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      transition: all 0.2s ease;
     }
 
-    select:focus {
-      border-color: #38bdf8;
-      box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
-    }
-
-    /* Modern Footer */
     footer {
       position: relative;
       z-index: 1;
-      margin-top: 28px;
+      margin-top: 25px;
       text-align: center;
-      font-size: 11.5px;
+      font-size: 11px;
       color: #64748b;
       line-height: 1.6;
     }
-    footer .brand { 
-      color: #38bdf8; 
-      font-weight: 800; 
-      letter-spacing: 0.5px;
-    }
+    footer .brand { color: #38bdf8; font-weight: 800; }
   </style>
 </head>
 <body>
 
-  <!-- Ambient Smokey Neon Orbs -->
   <div class="smoke-bg-1"></div>
   <div class="smoke-bg-2"></div>
 
-  <!-- Crystal Glass Player Card -->
   <div class="glass-card" id="card">
     <div class="album-art-wrap">
       <img id="poster" class="album-art" src="https://cdn-icons-png.flaticon.com/512/3293/3293810.png" alt="Thumbnail">
@@ -227,10 +311,26 @@
     <div id="fileName" class="file-title">Audio File</div>
     <div class="notice">🔒 Stream Only (Save & Download Disabled)</div>
 
-    <audio id="audio" controls controlsList="nodownload noremoteplayback">
+    <!-- Hidden Native Audio Element -->
+    <audio id="audio" preload="metadata">
       <source id="audioSrc" src="" type="audio/mpeg">
     </audio>
 
+    <!-- Custom Running Time Player Controls -->
+    <div class="player-controls-wrap">
+      <div class="progress-bar-container">
+        <span id="currentTime" class="time-stamp">0:00</span>
+        <input type="range" id="progressBar" class="progress-bar" value="0" min="0" max="100">
+        <span id="duration" class="time-stamp">0:00</span>
+      </div>
+      <div class="main-btn-row">
+        <button class="btn-mute" id="muteBtn" onclick="toggleMute()">🔊</button>
+        <button class="btn-play-pause" id="playBtn" onclick="togglePlay()">▶</button>
+        <div style="width: 24px;"></div> <!-- Spacer -->
+      </div>
+    </div>
+
+    <!-- Glowing Skip Controls -->
     <div class="controls">
       <button class="btn-skip" onclick="skip(-10)">⏪ 10s</button>
       <button class="btn-skip" onclick="skip(10)">10s ⏩</button>
@@ -238,7 +338,7 @@
 
     <div class="speed-container">
       <span>प्लेबैक स्पीड:</span>
-      <select id="speed" onchange="document.getElementById('audio').playbackRate = parseFloat(this.value)">
+      <select id="speed" onchange="audio.playbackRate = parseFloat(this.value)">
         <option value="0.5">0.5x</option>
         <option value="0.75">0.75x</option>
         <option value="1.0" selected>1.0x (Normal)</option>
@@ -256,7 +356,6 @@
   </footer>
 
   <script>
-    // Initialize Telegram Mini App
     const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
@@ -264,7 +363,13 @@
     const urlParams = new URLSearchParams(window.location.search);
     const fileId = urlParams.get('file_id');
     const name = urlParams.get('name');
+    
     const audio = document.getElementById('audio');
+    const playBtn = document.getElementById('playBtn');
+    const muteBtn = document.getElementById('muteBtn');
+    const progressBar = document.getElementById('progressBar');
+    const currentTimeEl = document.getElementById('currentTime');
+    const durationEl = document.getElementById('duration');
     const card = document.getElementById('card');
 
     if (name) {
@@ -275,15 +380,59 @@
       audio.load();
     }
 
+    function togglePlay() {
+      if (audio.paused) {
+        audio.play();
+      } else {
+        audio.pause();
+      }
+    }
+
+    function toggleMute() {
+      audio.muted = !audio.muted;
+      muteBtn.innerText = audio.muted ? '🔇' : '🔊';
+    }
+
+    function formatTime(seconds) {
+      if (isNaN(seconds)) return "0:00";
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    audio.addEventListener('play', () => {
+      playBtn.innerText = '❚❚';
+      card.classList.add('playing');
+    });
+
+    audio.addEventListener('pause', () => {
+      playBtn.innerText = '▶';
+      card.classList.remove('playing');
+    });
+
+    audio.addEventListener('loadedmetadata', () => {
+      durationEl.innerText = formatTime(audio.duration);
+    });
+
+    audio.addEventListener('timeupdate', () => {
+      currentTimeEl.innerText = formatTime(audio.currentTime);
+      if (audio.duration) {
+        const percent = (audio.currentTime / audio.duration) * 100;
+        progressBar.value = percent;
+      }
+    });
+
+    progressBar.addEventListener('input', () => {
+      if (audio.duration) {
+        audio.currentTime = (progressBar.value / 100) * audio.duration;
+      }
+    });
+
     function skip(seconds) {
       if (!isNaN(audio.duration) && audio.duration > 0) {
         audio.currentTime = Math.min(Math.max(audio.currentTime + seconds, 0), audio.duration);
       }
     }
-
-    audio.addEventListener('play', () => card.classList.add('playing'));
-    audio.addEventListener('pause', () => card.classList.remove('playing'));
-    audio.addEventListener('ended', () => card.classList.remove('playing'));
   </script>
 </body>
 </html>
