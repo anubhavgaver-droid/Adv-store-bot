@@ -1,14 +1,3 @@
-# Don't Remove Credit @CodeFlix_Bots, @rohit_1888
-# Ask Doubt on telegram @CodeflixSupport
-#
-# Copyright (C) 2025 by Codeflix-Bots@Github, < https://github.com/Codeflix-Bots >.
-#
-# This file is part of < https://github.com/Codeflix-Bots/FileStore > project,
-# and is released under the MIT License.
-# Please see < https://github.com/Codeflix-Bots/FileStore/blob/master/LICENSE >
-#
-# All rights reserved.
-#
 
 import os
 from os import environ, getenv
@@ -32,6 +21,9 @@ OWNER_ID = int(os.environ.get("OWNER_ID", "5898522531"))
 # --------------------------------------------
 PORT = os.environ.get("PORT", "8001")
 # --------------------------------------------
+# 🌐 Web Player / Render App URL (Updated)
+URL = os.environ.get("URL", "https://adv-store-bot-vrni.onrender.com")
+# --------------------------------------------
 DB_URI = os.environ.get("DATABASE_URL", "")
 DB_NAME = os.environ.get("DATABASE_NAME", "Cluovvoo")
 # --------------------------------------------
@@ -50,21 +42,16 @@ TUT_VID = os.environ.get("TUT_VID", "https://t.me/howanubhav/14")
 
 # --------------------------------------------
 
-# --------------------------------------------
 HELP_TXT = "<b><blockquote>ᴛʜɪs ɪs ᴀɴ ғɪʟᴇ ᴛᴏ ʟɪɴᴋ ʙᴏᴛ ᴡᴏʀᴋ ғᴏʀ @HDFILM0900_BOT\n\n❏ ʙᴏᴛ ᴄᴏᴍᴍᴀɴᴅs\n├/start : sᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ\n├/about : ᴏᴜʀ Iɴғᴏʀᴍᴀᴛɪᴏɴ\n└/help : ʜᴇʟᴘ ʀᴇʟᴀᴛᴇᴅ ʙᴏᴛ\n\n sɪᴍᴘʟʏ ᴄʟɪᴄᴋ ᴏɴ ʟɪɴᴋ ᴀɴᴅ sᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ ᴊᴏɪɴ ʙᴏᴛʜ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ ᴛʜᴀᴛs ɪᴛ.....!\n\n ᴅᴇᴠᴇʟᴏᴘᴇᴅ ʙʏ <a href=https://t.me/HDFILM0900_BOT>╰‿╯ ＫＡ ＬＵ u ꔪ</a></blockquote></b>"
 CHANNELS_TXT = "<b><blockquote>◈ 𝙷𝙴𝚁𝙴 𝙾𝚄𝚁 𝙲𝙷𝙰𝙽𝙽𝙴𝙻 & 𝙶𝚁𝙾𝚄𝙿 𝙻𝙸𝙽𝙺𝚂</blockquote></b>"
 ABOUT_TXT = "<b><blockquote>◈ ᴄʀᴇᴀᴛᴏʀ: <a href=https://t.me/hdfilm0900_bot>╰‿╯ ＫＡ ＬＵ u</a>\n‣ʟɪʙʀᴀʀʏ : ᴘʏʀᴏɢʀᴀᴍ\n‣ ʟᴀɴɢᴜᴀɢᴇ : ᴘʏᴛʜᴏɴ3\n‣ ᴅᴀᴛᴀ ʙᴀsᴇ : ᴍᴏɴɢᴏ ᴅʙ\n‣ ʜᴏsᴛᴇᴅ ᴏɴ  : ʜᴇʀᴏᴋᴜ\n‣ ʙᴜɪʟᴅ sᴛᴀᴛᴜs : ᴠ10+ᵖʳᵒ  [𝙰𝙳𝚅𝙰𝙽𝙲𝙴]</blockquote></b>"
-# --------------------------------------------
-# --------------------------------------------
 
 REACTIONS = ["🤝", "😇", "🤗", "😍", "👍", "🎅", "😐", "🥰", "🤩", "😱", "🤣", "😘", "👏", "😛", "😈", "🎉", "⚡️", "🫡", "🤓", "😎", "🏆", "🔥", "🤭", "🌚", "🆒", "👻", "😁"]
 
 EFFECT_IDS = [effect for effect in environ.get("EFFECT_IDS", "5104841245755180586 5104858069142078462 5159385139981059251 5046509860389126442 5046589136895476101 5107584321108051014").split()]
 
-# -------------------------------+++------------
-
 START_MSG = os.environ.get("START_MESSAGE", "<b>ʜᴇʟʟᴏ {mention}\n\n<blockquote> ɪ ᴀᴍ ғɪʟᴇ sᴛᴏʀᴇ ʙᴏᴛ, ɪ ᴄᴀɴ sᴛᴏʀᴇ ᴘʀɪᴠᴀᴛᴇ ғɪʟᴇs ɪɴ sᴘᴇᴄɪғɪᴇᴅ ᴄʜᴀɴɴᴇʟ ᴀɴᴅ ᴏᴛʜᴇʀ ᴜsᴇʀs ᴄᴀɴ ᴀᴄᴄᴇss ɪᴛ ғʀᴏᴍ sᴘᴇᴄɪᴀʟ ʟɪɴᴋ.</blockquote></b>")
-FORCE_MSG = os.environ.get("FORCE_SUB_MESSAGE", "ʜᴇʟʟᴏ {mention}\n\n<b><blockquote>ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʜᴇɴ ᴄʟɪᴄᴋ ᴏɴ ʀᴇʟᴏᴀᴅ button ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ʀᴇǫᴜᴇꜱᴛᴇᴅ ꜰɪʟᴇ.</b></blockquote>")
+FORCE_MSG = os.environ.get("FORCE_SUB_MESSAGE", "ʜᴇʟʟᴏ {mention}\n\n<b><blockquote>ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʜᴇɴ ᴄʟɪᴄᴋ ᴏɴ ʀᴇʟᴏᴀᴅ button ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ʀᴇǫᴜᴇꜱᴛᴇᴅ ꜰɪʟᴇ.</b> Repository</blockquote>")
 
 CMD_TXT = """<blockquote><b>» ᴀᴅᴍɪɴ ᴄᴏᴍᴍᴀɴᴅs:</b></blockquote>
 
@@ -89,13 +76,11 @@ CMD_TXT = """<blockquote><b>» ᴀᴅᴍɪɴ ᴄᴏᴍᴍᴀɴᴅs:</b></blockqu
 <b>›› /count :</b> ᴄᴏᴜɴᴛ ᴠᴇʀɪғɪᴄᴀᴛɪᴏɴs
 <b>›› /delreq :</b> Rᴇᴍᴏᴠᴇᴅ ʟᴇғᴛᴏᴠᴇʀ ɴᴏɴ-ʀᴇǫᴜᴇsᴛ ᴜsᴇʀs
 """
-# --------------------------------------------
-CUSTOM_CAPTION = os.environ.get("CUSTOM_CAPTION", "<b>• ʙʏ @HDFILM0900_BOT</b>")  # set your Custom Caption here, Keep None for Disable Custom Caption
-PROTECT_CONTENT = True if os.environ.get("PROTECT_CONTENT", "False") == "True" else False  # set True if you want to prevent users from forwarding files from bot
-# --------------------------------------------
-# Set true if you want Disable your Channel Posts Share button
+
+CUSTOM_CAPTION = os.environ.get("CUSTOM_CAPTION", "<b>• ʙʏ @HDFILM0900_BOT</b>")  
+PROTECT_CONTENT = True if os.environ.get("PROTECT_CONTENT", "False") == "True" else False  
 DISABLE_CHANNEL_BUTTON = os.environ.get("DISABLE_CHANNEL_BUTTON", None) == "True"
-# --------------------------------------------
+
 BOT_STATS_TEXT = "<b>BOT UPTIME</b> = {uptime}"
 USER_REPLY_TEXT = "ʙᴀᴋᴋᴀ ! ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴍʏ ꜱᴇɴᴘᴀɪ!!"
 
@@ -105,8 +90,7 @@ OWNER_TAG = os.environ.get("OWNER_TAG", "KCXRY")
 UPI_ID = os.environ.get("UPI_ID", "6398324472@fam")
 QR_PIC = os.environ.get("QR_PIC", "https://i.ibb.co/PGbZztgZ/photo-2026-05-04-16-41-38-7636287934861148164.jpg")
 SCREENSHOT_URL = os.environ.get("SCREENSHOT_URL", "t.me/O_Deleted_Account_0")
-# --------------------------------------------
-# Time and its price
+
 PRICE1 = os.environ.get("PRICE1", "0 rs")
 PRICE2 = os.environ.get("PRICE2", "60 rs")
 PRICE3 = os.environ.get("PRICE3", "150 rs")
