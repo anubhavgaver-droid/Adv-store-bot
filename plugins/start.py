@@ -174,7 +174,7 @@ async def start_command(client: Client, message: Message):
             argument = decoded_str.split("-")
         except Exception as e:
             logger.error(f"Error decoding string {base64_string}: {e}")
-            return await message.reply_text("<blockquote>⚠️ <b>Iɴᴠᴀʟɪᴅ Lɪɴᴋ Oʀ Fɪʟᴇ Hᴀsʜ!</b></blockquote>")
+            return await message.reply_text("<blockquote>⚠️ <b>Iɴᴠᴀʟɪᴅ Lɪɴɪ Oʀ Fɪʟᴇ Hᴀsʜ!</b></blockquote>")
 
         db_channel_id = abs(get_db_channel_id(client))
         ids = []
@@ -211,6 +211,8 @@ async def start_command(client: Client, message: Message):
             return
 
         codeflix_msgs = []
+        app_url = getattr(URL, 'rstrip', lambda x: URL)('/') if 'URL' in globals() and URL else render_domain.rstrip('/')
+
         for msg in messages:
             await asyncio.sleep(0.05)
 
@@ -229,7 +231,23 @@ async def start_command(client: Client, message: Message):
             else:
                 caption = "" if not msg.caption else msg.caption.html
 
-            reply_markup = msg.reply_markup if DISABLE_CHANNEL_BUTTON else None
+            # -------------------------------------------------------------
+            # 🎵 Stream Online Button Logic Added
+            # -------------------------------------------------------------
+            button_list = []
+            if msg.media and (msg.audio or msg.document or msg.video):
+                media_obj = msg.audio or msg.document or msg.video
+                f_name = getattr(media_obj, 'file_name', 'audio.mp3')
+                encoded_name = urllib.parse.quote(f_name) if 'urllib' in sys.modules else f_name
+                stream_link = f"{app_url}/?file_id={msg.id}&name={encoded_name}"
+                button_list.append([InlineKeyboardButton("▶️ Watch / Listen Online", url=stream_link)])
+
+            if msg.reply_markup and hasattr(msg.reply_markup, 'inline_keyboard'):
+                for row in msg.reply_markup.inline_keyboard:
+                    button_list.append(row)
+
+            reply_markup = InlineKeyboardMarkup(button_list) if button_list else (msg.reply_markup if DISABLE_CHANNEL_BUTTON else None)
+            # -------------------------------------------------------------
 
             try:
                 copied_msg = await msg.copy(
@@ -293,7 +311,7 @@ async def start_command(client: Client, message: Message):
                 ) if reload_url else None
 
                 await notification_msg.edit(
-                    "<blockquote><b>Yᴏᴜʀ Vɪᴅᴇᴏ / Fɪʟᴇ Is Sᴜᴄᴄᴇssғᴜʟʟʏ Dᴇʟᴇᴛᴇᴅ !!\n\nCʟɪᴄᴋ Bᴇʟᴏᴡ Bᴜᴛᴛᴏɴ Tᴏ Gᴇᴛ Yᴏᴜʀ Dᴇʟᴇᴛᴇᴅ Vɪᴅᴇᴏ / Fɪʟᴇ 👇</b></blockquote>",
+                    "<blockquote><b>Yᴏᴜʀ Vɪᴅᴇᴏ / Fɪʟᴇ Is Sᴜᴄᴄᴇssғᴜʟʟʏ Dᴇʟᴇᴛᴇᴅ !!\n\nCʟɪᴄᴋ Bᴇʟᴏᴡ BᴜᴛᴛᴏN Tᴏ Gᴇᴛ Yᴏᴜʀ Dᴇʟᴇᴛᴇᴅ Vɪᴅᴇᴏ / Fɪʟᴇ 👇</b></blockquote>",
                     reply_markup=keyboard
                 )
             except Exception:
