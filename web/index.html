@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GW KALU - Web Audio Player</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      background-color: #0d1117;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      padding: 25px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      margin: auto;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+    .thumb {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin: 0 auto 15px auto;
+      border: 3px solid #58a6ff;
+      box-shadow: 0 0 15px rgba(88, 166, 255, 0.4);
+    }
+    .file-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f0f6fc;
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+    .notice {
+      background: rgba(235, 87, 87, 0.15);
+      color: #ff6b6b;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      display: inline-block;
+      margin-bottom: 15px;
+      border: 1px solid rgba(235, 87, 87, 0.3);
+    }
+    audio { width: 100%; margin: 10px 0; outline: none; }
+    
+    .custom-controls {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin: 15px 0;
+    }
+    .btn-skip {
+      background: #21262d;
+      color: #58a6ff;
+      border: 1px solid #30363d;
+      padding: 8px 15px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .speed-box {
+      background: #21262d;
+      padding: 10px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+    }
+    select {
+      background: #0d1117;
+      color: #58a6ff;
+      border: 1px solid #30363d;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-weight: bold;
+    }
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #8b949e;
+      line-height: 1.6;
+    }
+    footer .brand { color: #58a6ff; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <img id="poster" class="thumb" src="https://cdn-icons-png.flaticon.com/512/3293/3293810.png" alt="Thumbnail">
+    <div id="fileName" class="file-title">Audio File</div>
+    <div class="notice">⚠️ Stream Only (Save & Download Disabled)</div>
+
+    <audio id="audio" controls controlsList="nodownload noremoteplayback">
+      <source id="audioSrc" src="" type="audio/mpeg">
+    </audio>
+
+    <div class="custom-controls">
+      <button class="btn-skip" onclick="skip(-10)">⏪ 10s</button>
+      <button class="btn-skip" onclick="skip(10)">10s ⏩</button>
+    </div>
+
+    <div class="speed-box">
+      <span>प्लेबैक स्पीड:</span>
+      <select id="speed" onchange="document.getElementById('audio').playbackRate = parseFloat(this.value)">
+        <option value="0.5">0.5x</option>
+        <option value="0.75">0.75x</option>
+        <option value="1.0" selected>1.0x (Normal)</option>
+        <option value="1.25">1.25x</option>
+        <option value="1.5">1.5x</option>
+        <option value="2.0">2.0x</option>
+        <option value="2.5">2.5x</option>
+        <option value="3.0">3.0x</option>
+      </select>
+    </div>
+  </div>
+
+  <footer>
+    <p>This file only streams. Download & save options are disabled.</p>
+    <p>© 2026 GW KALU. All Rights Reserved.</p>
+    <p class="brand">Powered by GW KALU</p>
+  </footer>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const fileId = urlParams.get('file_id');
+    const name = urlParams.get('name');
+    const audio = document.getElementById('audio');
+    
+    if (name) {
+      document.getElementById('fileName').innerText = decodeURIComponent(name);
+    }
+    if (fileId) {
+      document.getElementById('audioSrc').src = `/stream/${fileId}`;
+      audio.load();
+    }
+
+    function skip(sec) {
+      audio.currentTime += sec;
+    }
+  </script>
+</body>
+</html>
