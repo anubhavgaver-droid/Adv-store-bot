@@ -175,7 +175,7 @@ async def start_command(client: Client, message: Message):
             argument = decoded_str.split("-")
         except Exception as e:
             logger.error(f"Error decoding string {base64_string}: {e}")
-            return await message.reply_text("<blockquote>⚠️ <b>Iɴᴠᴀʟɪᴅ Lɪɴɪ Oʀ Fɪʟᴇ Hᴀsʜ!</b></blockquote>")
+            return await message.reply_text("<blockquote>⚠️ <b>Iɴᴠᴀʟɪᴅ Lɪɴᴋ Oʀ Fɪʟᴇ Hᴀsʜ!</b></blockquote>")
 
         db_channel_id = abs(get_db_channel_id(client))
         ids = []
@@ -233,15 +233,31 @@ async def start_command(client: Client, message: Message):
                 caption = "" if not msg.caption else msg.caption.html
 
             # -------------------------------------------------------------
-            # 🎵 Stream Online Button Logic Added
+            # 🎵 Telegram Mini App Player (Premium Only Restriction)
             # -------------------------------------------------------------
             button_list = []
             if msg.media and (msg.audio or msg.document or msg.video):
-                media_obj = msg.audio or msg.document or msg.video
-                f_name = getattr(media_obj, 'file_name', 'audio.mp3')
-                encoded_name = urllib.parse.quote(f_name) if 'urllib' in sys.modules else f_name
-                stream_link = f"{app_url}/?file_id={msg.id}&name={encoded_name}"
-                button_list.append([InlineKeyboardButton("▶️ Watch / Listen Online", url=stream_link)])
+                if is_premium:
+                    media_obj = msg.audio or msg.document or msg.video
+                    f_name = getattr(media_obj, 'file_name', 'audio.mp3') or 'audio.mp3'
+                    encoded_name = urllib.parse.quote(f_name)
+                    stream_link = f"{app_url}/?file_id={msg.id}&name={encoded_name}"
+                    
+                    # Telegram Mini App Button (opens inside Telegram popup)
+                    button_list.append([
+                        InlineKeyboardButton(
+                            "▶️ Watch / Listen Online", 
+                            web_app=WebAppInfo(url=stream_link)
+                        )
+                    ])
+                else:
+                    # Non-Premium User Button
+                    button_list.append([
+                        InlineKeyboardButton(
+                            "🔒 Watch Online (Prem Only)", 
+                            callback_data="premium"
+                        )
+                    ])
 
             if msg.reply_markup and hasattr(msg.reply_markup, 'inline_keyboard'):
                 for row in msg.reply_markup.inline_keyboard:
@@ -556,7 +572,7 @@ async def not_joined(client: Client, message: Message):
 
                 except Exception as e:
                     logger.error(f"Error with chat {chat_id}: {e}")
-                    try: return await temp.edit("<blockquote><b><i>! EʀʀᴏR, Cᴏɴᴛᴀᴄᴛ Dᴇᴠᴇʟᴏᴘᴇʀ @rohit_1888</i></b></blockquote>")
+                    try: return await temp.edit("<blockquote><b><i>! EʀʀᴏR, Cᴏɴᴛᴀᴄᴛ DᴇᴠᴇʟᴏᴘᴇR @rohit_1888</i></b></blockquote>")
                     except Exception: return
 
         try:
@@ -577,7 +593,7 @@ async def not_joined(client: Client, message: Message):
 
     except Exception as e:
         logger.error(f"Final Error: {e}")
-        try: await temp.edit("<blockquote><b><i>! EʀʀᴏR, Cᴏɴᴛᴀᴄᴛ Dᴇᴠᴇʟᴏᴘᴇʀ...</i></b></blockquote>")
+        try: await temp.edit("<blockquote><b><i>! EʀʀᴏR, Cᴏɴᴛᴀᴄᴛ DᴇᴠᴇʟᴏᴘᴇR...</i></b></blockquote>")
         except Exception: pass
 
 
