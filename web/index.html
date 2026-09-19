@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -25,7 +25,7 @@
       position: relative;
     }
 
-    /* Ambient Smokey Background Orbs */
+    /* Ambient Background Glows */
     .smoke-bg-1 {
       position: absolute;
       width: 320px;
@@ -54,7 +54,7 @@
       100% { transform: translate(30px, -40px) scale(1.15); }
     }
 
-    /* Main Glass Container */
+    /* Main Glass Player Card */
     .glass-card {
       position: relative;
       z-index: 1;
@@ -72,7 +72,7 @@
       margin-bottom: 16px;
     }
 
-    /* Secondary Glass Container for Links */
+    /* Secondary Glass Card for Social Links */
     .glass-card-secondary {
       position: relative;
       z-index: 1;
@@ -88,7 +88,7 @@
                   inset 0 1px 1px rgba(255, 255, 255, 0.15);
     }
 
-    /* Rotating Album Artwork */
+    /* Album Artwork */
     .album-art-wrap {
       position: relative;
       width: 115px;
@@ -113,7 +113,6 @@
       100% { transform: rotate(360deg); }
     }
 
-    /* Title & Notice Styling */
     .file-title {
       font-size: 16px;
       font-weight: 700;
@@ -137,7 +136,7 @@
       letter-spacing: 0.5px;
     }
 
-    /* Running Time Controls */
+    /* Player Progress & Main Play Button */
     .player-controls-wrap {
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -180,7 +179,6 @@
       background: #38bdf8;
       box-shadow: 0 0 10px #38bdf8;
       cursor: pointer;
-      transition: transform 0.1s ease;
     }
 
     .main-btn-row {
@@ -216,7 +214,7 @@
       cursor: pointer;
     }
 
-    /* Glowing Skip Controls */
+    /* Skip Controls */
     .controls {
       display: flex;
       justify-content: center;
@@ -250,12 +248,7 @@
       left: -150%;
       width: 80%;
       height: 200%;
-      background: linear-gradient(
-        60deg, 
-        rgba(255, 255, 255, 0) 20%, 
-        rgba(255, 255, 255, 0.35) 50%, 
-        rgba(255, 255, 255, 0) 80%
-      );
+      background: linear-gradient(60deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0) 80%);
       transform: rotate(25deg);
       animation: shineSweep 3.5s infinite ease-in-out;
     }
@@ -268,45 +261,79 @@
 
     .btn-skip:active { transform: scale(0.92); }
 
-    /* Speed & Sleep Timer Container */
-    .settings-grid {
-      display: flex;
-      flex-direction: column;
+    /* Button Action Row for Speed & Sleep Timer */
+    .action-buttons-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
 
-    .setting-item {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      padding: 8px 14px;
+    .pill-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 12.5px;
-      color: #94a3b8;
-    }
-
-    select {
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      color: #38bdf8;
-      border: 1px solid rgba(56, 189, 248, 0.4);
-      padding: 5px 10px;
-      border-radius: 10px;
-      font-weight: 700;
+      padding: 10px 12px;
+      color: #e2e8f0;
       font-size: 12px;
-      outline: none;
-      cursor: pointer;
-    }
-
-    .timer-badge {
-      font-size: 11px;
-      color: #f43f5e;
       font-weight: 700;
-      margin-left: 5px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
     }
 
-    /* Separate Colored Glass Buttons */
+    .pill-btn:hover, .pill-btn:active {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: rgba(56, 189, 248, 0.4);
+      color: #38bdf8;
+    }
+
+    .pill-btn span.val {
+      font-size: 11px;
+      color: #0ea5e9;
+      font-weight: 800;
+    }
+
+    /* Option Selector Popups / Sub-Pills */
+    .options-tray {
+      display: none;
+      grid-column: span 2;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 16px;
+      padding: 10px;
+      gap: 6px;
+      grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+      margin-top: 4px;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .tray-opt {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 6px 4px;
+      color: #cbd5e1;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .tray-opt.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #38bdf8;
+    }
+
+    /* Social Links Buttons */
     .social-links {
       display: flex;
       flex-direction: column;
@@ -337,17 +364,12 @@
       left: -150%;
       width: 80%;
       height: 200%;
-      background: linear-gradient(
-        60deg, 
-        rgba(255, 255, 255, 0) 20%, 
-        rgba(255, 255, 255, 0.25) 50%, 
-        rgba(255, 255, 255, 0) 80%
-      );
+      background: linear-gradient(60deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0) 80%);
       transform: rotate(25deg);
       animation: shineSweep 4s infinite ease-in-out;
     }
 
-    /* Story Channel - Purple/Blue Glass */
+    /* Story Channel - Purple Glass */
     .btn-story {
       background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(124, 58, 237, 0.08) 100%);
       border: 1px solid rgba(168, 85, 247, 0.4);
@@ -355,7 +377,7 @@
       box-shadow: 0 4px 15px rgba(168, 85, 247, 0.2);
     }
 
-    /* Support Group - Vibrant Green Glass */
+    /* Support Group - Green Glass */
     .btn-support {
       background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%);
       border: 1px solid rgba(34, 197, 94, 0.4);
@@ -371,9 +393,7 @@
       box-shadow: 0 4px 15px rgba(14, 165, 233, 0.2);
     }
 
-    .link-btn:active {
-      transform: scale(0.96);
-    }
+    .link-btn:active { transform: scale(0.96); }
 
     footer {
       position: relative;
@@ -392,7 +412,7 @@
   <div class="smoke-bg-1"></div>
   <div class="smoke-bg-2"></div>
 
-  <!-- Main Player Glass Card -->
+  <!-- Main Player Card -->
   <div class="glass-card" id="card">
     <div class="album-art-wrap">
       <img id="poster" class="album-art" src="https://cdn-icons-png.flaticon.com/512/3293/3293810.png" alt="Thumbnail">
@@ -401,12 +421,12 @@
     <div id="fileName" class="file-title">Audio File</div>
     <div class="notice">🔒 Stream Only (Save & Download Disabled)</div>
 
-    <!-- Hidden Native Audio Element -->
+    <!-- Hidden Native Audio Tag -->
     <audio id="audio" preload="metadata">
       <source id="audioSrc" src="" type="audio/mpeg">
     </audio>
 
-    <!-- Custom Running Time Player Controls -->
+    <!-- Custom Player Progress -->
     <div class="player-controls-wrap">
       <div class="progress-bar-container">
         <span id="currentTime" class="time-stamp">0:00</span>
@@ -420,40 +440,45 @@
       </div>
     </div>
 
-    <!-- Glowing Skip Controls -->
+    <!-- Skip Buttons -->
     <div class="controls">
       <button class="btn-skip" onclick="skip(-10)">⏪ 10s</button>
       <button class="btn-skip" onclick="skip(10)">10s ⏩</button>
     </div>
 
-    <!-- Settings Grid (Playback Speed & Sleep Timer) -->
-    <div class="settings-grid">
-      <div class="setting-item">
-        <span>प्लेबैक स्पीड:</span>
-        <select id="speed" onchange="audio.playbackRate = parseFloat(this.value)">
-          <option value="0.5">0.5x</option>
-          <option value="0.75">0.75x</option>
-          <option value="1.0" selected>1.0x (Normal)</option>
-          <option value="1.25">1.25x</option>
-          <option value="1.5">1.5x</option>
-          <option value="2.0">2.0x</option>
-        </select>
+    <!-- Interactive Speed & Sleep Timer Buttons -->
+    <div class="action-buttons-grid">
+      <button class="pill-btn" onclick="toggleTray('speedTray')">
+        ⚡ Speed
+        <span id="speedVal" class="val">1.0x</span>
+      </button>
+
+      <button class="pill-btn" onclick="toggleTray('timerTray')">
+        ⏰ Sleep Timer
+        <span id="timerVal" class="val">Off</span>
+      </button>
+
+      <!-- Speed Selector Pills -->
+      <div id="speedTray" class="options-tray">
+        <div class="tray-opt" onclick="setSpeed(0.75, this)">0.75x</div>
+        <div class="tray-opt active" onclick="setSpeed(1.0, this)">1.0x</div>
+        <div class="tray-opt" onclick="setSpeed(1.25, this)">1.25x</div>
+        <div class="tray-opt" onclick="setSpeed(1.5, this)">1.5x</div>
+        <div class="tray-opt" onclick="setSpeed(2.0, this)">2.0x</div>
       </div>
 
-      <div class="setting-item">
-        <span>⏰ स्लीप टाइमर: <span id="timerStatus" class="timer-badge"></span></span>
-        <select id="sleepTimer" onchange="setSleepTimer(this.value)">
-          <option value="0">Off</option>
-          <option value="15">15 मिनट</option>
-          <option value="30">30 मिनट</option>
-          <option value="45">45 मिनट</option>
-          <option value="60">60 मिनट</option>
-        </select>
+      <!-- Sleep Timer Selector Pills -->
+      <div id="timerTray" class="options-tray">
+        <div class="tray-opt active" onclick="setSleepTimer(0, 'Off', this)">Off</div>
+        <div class="tray-opt" onclick="setSleepTimer(15, '15m', this)">15m</div>
+        <div class="tray-opt" onclick="setSleepTimer(30, '30m', this)">30m</div>
+        <div class="tray-opt" onclick="setSleepTimer(45, '45m', this)">45m</div>
+        <div class="tray-opt" onclick="setSleepTimer(60, '60m', this)">60m</div>
       </div>
     </div>
   </div>
 
-  <!-- Separate Colored Glass Card for Social Links -->
+  <!-- Separate Glass Card for Social Links -->
   <div class="glass-card-secondary">
     <div class="social-links">
       <a href="https://t.me/FREESTORYHUBMR" target="_blank" class="link-btn btn-story">
@@ -490,7 +515,8 @@
     const currentTimeEl = document.getElementById('currentTime');
     const durationEl = document.getElementById('duration');
     const card = document.getElementById('card');
-    const timerStatusEl = document.getElementById('timerStatus');
+    const speedVal = document.getElementById('speedVal');
+    const timerVal = document.getElementById('timerVal');
 
     let timerInterval = null;
     let timerTimeout = null;
@@ -538,34 +564,64 @@
       return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
-    /* Sleep Timer Logic */
-    function setSleepTimer(minutes) {
+    /* Toggle Option Trays */
+    function toggleTray(trayId) {
+      const speedTray = document.getElementById('speedTray');
+      const timerTray = document.getElementById('timerTray');
+
+      if (trayId === 'speedTray') {
+        speedTray.style.display = (speedTray.style.display === 'grid') ? 'none' : 'grid';
+        timerTray.style.display = 'none';
+      } else {
+        timerTray.style.display = (timerTray.style.display === 'grid') ? 'none' : 'grid';
+        speedTray.style.display = 'none';
+      }
+    }
+
+    /* Set Playback Speed */
+    function setSpeed(rate, el) {
+      audio.playbackRate = rate;
+      speedVal.innerText = rate + 'x';
+      
+      const parent = el.parentElement;
+      parent.querySelectorAll('.tray-opt').forEach(opt => opt.classList.remove('active'));
+      el.classList.add('active');
+      parent.style.display = 'none';
+    }
+
+    /* Set Sleep Timer Logic */
+    function setSleepTimer(mins, label, el) {
       clearTimeout(timerTimeout);
       clearInterval(timerInterval);
-      timerStatusEl.innerText = "";
 
-      const mins = parseInt(minutes);
-      if (mins > 0) {
-        let remainingSeconds = mins * 60;
-        
-        timerInterval = setInterval(() => {
-          remainingSeconds--;
-          const m = Math.floor(remainingSeconds / 60);
-          const s = remainingSeconds % 60;
-          timerStatusEl.innerText = `(${m}:${s < 10 ? '0' : ''}${s})`;
+      const parent = el.parentElement;
+      parent.querySelectorAll('.tray-opt').forEach(opt => opt.classList.remove('active'));
+      el.classList.add('active');
+      parent.style.display = 'none';
 
-          if (remainingSeconds <= 0) {
-            clearInterval(timerInterval);
-            timerStatusEl.innerText = "";
-            document.getElementById('sleepTimer').value = "0";
-          }
-        }, 1000);
-
-        timerTimeout = setTimeout(() => {
-          audio.pause();
-          alert("स्लीप टाइमर समाप्त हुआ। ऑडियो पॉज़ कर दिया गया है।");
-        }, mins * 60 * 1000);
+      if (mins === 0) {
+        timerVal.innerText = "Off";
+        return;
       }
+
+      let remainingSeconds = mins * 60;
+      
+      timerInterval = setInterval(() => {
+        remainingSeconds--;
+        const m = Math.floor(remainingSeconds / 60);
+        const s = remainingSeconds % 60;
+        timerVal.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+
+        if (remainingSeconds <= 0) {
+          clearInterval(timerInterval);
+          timerVal.innerText = "Off";
+        }
+      }, 1000);
+
+      timerTimeout = setTimeout(() => {
+        audio.pause();
+        alert("Sleep timer finished. Playback paused.");
+      }, mins * 60 * 1000);
     }
 
     audio.addEventListener('play', () => {
