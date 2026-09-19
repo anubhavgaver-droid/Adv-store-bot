@@ -8,6 +8,11 @@ routes = web.RouteTableDef()
 async def root_route_handler(request):
     return web.FileResponse('web/index.html')
 
+# 3. सर्वर को लाइव रखने के लिए पिंग (Ping) रूट
+@routes.get("/ping", allow_head=True)
+async def ping_handler(request):
+    return web.Response(text="Pong! Server is Active and Running.", status=200)
+
 # 2. ऑडियो स्ट्रीमिंग + रेंज हैंडलर
 @routes.get("/stream/{file_id}")
 async def stream_handler(request):
