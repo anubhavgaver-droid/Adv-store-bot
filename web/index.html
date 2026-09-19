@@ -54,7 +54,7 @@
       100% { transform: translate(30px, -40px) scale(1.15); }
     }
 
-    /* HD Crystal Glassmorphism Card Container */
+    /* Main Glass Container */
     .glass-card {
       position: relative;
       z-index: 1;
@@ -69,6 +69,23 @@
       text-align: center;
       box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85),
                   inset 0 1px 1px rgba(255, 255, 255, 0.25);
+      margin-bottom: 16px;
+    }
+
+    /* Secondary Glass Container for Links */
+    .glass-card-secondary {
+      position: relative;
+      z-index: 1;
+      background: rgba(13, 17, 23, 0.65);
+      backdrop-filter: blur(25px) saturate(180%);
+      -webkit-backdrop-filter: blur(25px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 24px;
+      padding: 18px 16px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6),
+                  inset 0 1px 1px rgba(255, 255, 255, 0.15);
     }
 
     /* Rotating Album Artwork */
@@ -120,7 +137,7 @@
       letter-spacing: 0.5px;
     }
 
-    /* Custom HD Running Time Controls */
+    /* Running Time Controls */
     .player-controls-wrap {
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -199,7 +216,7 @@
       cursor: pointer;
     }
 
-    /* Glowing Skip Controls with Shine Effect */
+    /* Glowing Skip Controls */
     .controls {
       display: flex;
       justify-content: center;
@@ -251,11 +268,17 @@
 
     .btn-skip:active { transform: scale(0.92); }
 
-    /* Speed Controller Box */
-    .speed-container {
+    /* Speed & Sleep Timer Container */
+    .settings-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .setting-item {
       background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 9px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 8px 14px;
       border-radius: 16px;
       display: flex;
       justify-content: space-between;
@@ -276,43 +299,86 @@
       cursor: pointer;
     }
 
-    /* Links & Buttons Section */
+    .timer-badge {
+      font-size: 11px;
+      color: #f43f5e;
+      font-weight: 700;
+      margin-left: 5px;
+    }
+
+    /* Separate Colored Glass Buttons */
     .social-links {
       display: flex;
       flex-direction: column;
-      gap: 9px;
-      margin-top: 18px;
+      gap: 10px;
       width: 100%;
     }
 
     .link-btn {
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: #e2e8f0;
-      padding: 9px 14px;
-      border-radius: 14px;
-      font-size: 12px;
-      font-weight: 600;
+      padding: 11px 16px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 700;
       text-decoration: none;
-      transition: all 0.25s ease;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(15px);
+      overflow: hidden;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .link-btn::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -150%;
+      width: 80%;
+      height: 200%;
+      background: linear-gradient(
+        60deg, 
+        rgba(255, 255, 255, 0) 20%, 
+        rgba(255, 255, 255, 0.25) 50%, 
+        rgba(255, 255, 255, 0) 80%
+      );
+      transform: rotate(25deg);
+      animation: shineSweep 4s infinite ease-in-out;
+    }
+
+    /* Story Channel - Purple/Blue Glass */
+    .btn-story {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(124, 58, 237, 0.08) 100%);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      color: #c084fc;
+      box-shadow: 0 4px 15px rgba(168, 85, 247, 0.2);
+    }
+
+    /* Support Group - Vibrant Green Glass */
+    .btn-support {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      color: #4ade80;
+      box-shadow: 0 4px 15px rgba(34, 197, 94, 0.2);
+    }
+
+    /* Developer Contact - Sky Blue Glass */
+    .btn-dev {
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(2, 132, 199, 0.08) 100%);
+      border: 1px solid rgba(14, 165, 233, 0.4);
+      color: #38bdf8;
+      box-shadow: 0 4px 15px rgba(14, 165, 233, 0.2);
     }
 
     .link-btn:active {
       transform: scale(0.96);
-      background: rgba(56, 189, 248, 0.15);
-      border-color: rgba(56, 189, 248, 0.4);
-      color: #38bdf8;
     }
 
     footer {
       position: relative;
       z-index: 1;
-      margin-top: 20px;
+      margin-top: 18px;
       text-align: center;
       font-size: 11px;
       color: #64748b;
@@ -326,6 +392,7 @@
   <div class="smoke-bg-1"></div>
   <div class="smoke-bg-2"></div>
 
+  <!-- Main Player Glass Card -->
   <div class="glass-card" id="card">
     <div class="album-art-wrap">
       <img id="poster" class="album-art" src="https://cdn-icons-png.flaticon.com/512/3293/3293810.png" alt="Thumbnail">
@@ -359,27 +426,43 @@
       <button class="btn-skip" onclick="skip(10)">10s ⏩</button>
     </div>
 
-    <div class="speed-container">
-      <span>प्लेबैक स्पीड:</span>
-      <select id="speed" onchange="audio.playbackRate = parseFloat(this.value)">
-        <option value="0.5">0.5x</option>
-        <option value="0.75">0.75x</option>
-        <option value="1.0" selected>1.0x (Normal)</option>
-        <option value="1.25">1.25x</option>
-        <option value="1.5">1.5x</option>
-        <option value="2.0">2.0x</option>
-      </select>
-    </div>
+    <!-- Settings Grid (Playback Speed & Sleep Timer) -->
+    <div class="settings-grid">
+      <div class="setting-item">
+        <span>प्लेबैक स्पीड:</span>
+        <select id="speed" onchange="audio.playbackRate = parseFloat(this.value)">
+          <option value="0.5">0.5x</option>
+          <option value="0.75">0.75x</option>
+          <option value="1.0" selected>1.0x (Normal)</option>
+          <option value="1.25">1.25x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2.0">2.0x</option>
+        </select>
+      </div>
 
-    <!-- Dynamic Social Links -->
+      <div class="setting-item">
+        <span>⏰ स्लीप टाइमर: <span id="timerStatus" class="timer-badge"></span></span>
+        <select id="sleepTimer" onchange="setSleepTimer(this.value)">
+          <option value="0">Off</option>
+          <option value="15">15 मिनट</option>
+          <option value="30">30 मिनट</option>
+          <option value="45">45 मिनट</option>
+          <option value="60">60 मिनट</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Separate Colored Glass Card for Social Links -->
+  <div class="glass-card-secondary">
     <div class="social-links">
-      <a href="https://t.me/FREESTORYHUBMR" target="_blank" class="link-btn">
+      <a href="https://t.me/FREESTORYHUBMR" target="_blank" class="link-btn btn-story">
         📖 Story Channel
       </a>
-      <a href="https://t.me/pratilipifm0900" target="_blank" class="link-btn">
+      <a href="https://t.me/pratilipifm0900" target="_blank" class="link-btn btn-support">
         💬 Support Group
       </a>
-      <a href="https://t.me/hdfilm0900_bot" target="_blank" class="link-btn">
+      <a href="https://t.me/hdfilm0900_bot" target="_blank" class="link-btn btn-dev">
         👨‍💻 Developer Contact
       </a>
     </div>
@@ -407,6 +490,10 @@
     const currentTimeEl = document.getElementById('currentTime');
     const durationEl = document.getElementById('duration');
     const card = document.getElementById('card');
+    const timerStatusEl = document.getElementById('timerStatus');
+
+    let timerInterval = null;
+    let timerTimeout = null;
 
     if (name) {
       document.getElementById('fileName').innerText = decodeURIComponent(name);
@@ -449,6 +536,36 @@
       const mins = Math.floor(seconds / 60);
       const secs = Math.floor(seconds % 60);
       return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    /* Sleep Timer Logic */
+    function setSleepTimer(minutes) {
+      clearTimeout(timerTimeout);
+      clearInterval(timerInterval);
+      timerStatusEl.innerText = "";
+
+      const mins = parseInt(minutes);
+      if (mins > 0) {
+        let remainingSeconds = mins * 60;
+        
+        timerInterval = setInterval(() => {
+          remainingSeconds--;
+          const m = Math.floor(remainingSeconds / 60);
+          const s = remainingSeconds % 60;
+          timerStatusEl.innerText = `(${m}:${s < 10 ? '0' : ''}${s})`;
+
+          if (remainingSeconds <= 0) {
+            clearInterval(timerInterval);
+            timerStatusEl.innerText = "";
+            document.getElementById('sleepTimer').value = "0";
+          }
+        }, 1000);
+
+        timerTimeout = setTimeout(() => {
+          audio.pause();
+          alert("स्लीप टाइमर समाप्त हुआ। ऑडियो पॉज़ कर दिया गया है।");
+        }, mins * 60 * 1000);
+      }
     }
 
     audio.addEventListener('play', () => {
