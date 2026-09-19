@@ -7,6 +7,7 @@ import string
 import time
 import logging
 import traceback
+import urllib.parse
 from datetime import datetime, timedelta
 from pyrogram import Client, filters, __version__, enums
 from pyrogram.enums import ParseMode, ChatAction
