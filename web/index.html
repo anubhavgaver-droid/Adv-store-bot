@@ -2,15 +2,19 @@
 <html lang="hi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GW KALU - HD Web Audio Player</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>GW KALU - Mini App Web Player</title>
+  
+  <!-- Telegram Web App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #090c10;
-      color: #ffffff;
+      background: var(--tg-theme-bg-color, #090c10);
+      color: var(--tg-theme-text-color, #ffffff);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
@@ -24,55 +28,55 @@
     /* Smokey Neon Background Orbs */
     .smoke-bg {
       position: absolute;
-      width: 350px;
-      height: 350px;
-      background: radial-gradient(circle, rgba(138, 43, 226, 0.45) 0%, rgba(0, 0, 0, 0) 70%);
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, rgba(138, 43, 226, 0.4) 0%, rgba(0, 0, 0, 0) 70%);
       filter: blur(80px);
       top: 10%;
-      left: 15%;
+      left: 10%;
       z-index: 0;
       animation: floatSmoke 8s ease-in-out infinite alternate;
     }
     .smoke-bg-2 {
       position: absolute;
-      width: 300px;
-      height: 300px;
-      background: radial-gradient(circle, rgba(0, 191, 255, 0.35) 0%, rgba(0, 0, 0, 0) 70%);
+      width: 280px;
+      height: 280px;
+      background: radial-gradient(circle, rgba(0, 191, 255, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
       filter: blur(75px);
       bottom: 10%;
-      right: 15%;
+      right: 10%;
       z-index: 0;
       animation: floatSmoke 10s ease-in-out infinite alternate-reverse;
     }
 
     @keyframes floatSmoke {
       0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(30px, -40px) scale(1.15); }
+      100% { transform: translate(25px, -35px) scale(1.15); }
     }
 
     /* Glassmorphism Card Container */
     .glass-card {
       position: relative;
       z-index: 1;
-      background: rgba(22, 27, 34, 0.55);
+      background: rgba(22, 27, 34, 0.65);
       backdrop-filter: blur(25px) saturate(180%);
       -webkit-backdrop-filter: blur(25px) saturate(180%);
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 28px;
-      padding: 30px 24px;
+      padding: 28px 22px;
       width: 100%;
-      max-width: 390px;
+      max-width: 380px;
       text-align: center;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8),
                   inset 0 1px 1px rgba(255, 255, 255, 0.2);
     }
 
-    /* Vinyl Album Art */
+    /* Rotating Album Art */
     .album-art-wrap {
       position: relative;
-      width: 130px;
-      height: 130px;
-      margin: 0 auto 20px auto;
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 18px auto;
     }
     .album-art {
       width: 100%;
@@ -93,7 +97,7 @@
     }
 
     .file-title {
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 600;
       color: #f0f6fc;
       margin-bottom: 10px;
@@ -122,7 +126,7 @@
       outline: none;
     }
 
-    /* Custom HD Skip Buttons */
+    /* Custom HD Skip Controls */
     .controls {
       display: flex;
       justify-content: center;
@@ -131,10 +135,10 @@
     }
 
     .btn-skip {
-      background: rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.08);
       color: #00d2ff;
-      border: 1px solid rgba(0, 210, 255, 0.25);
-      padding: 10px 20px;
+      border: 1px solid rgba(0, 210, 255, 0.3);
+      padding: 10px 22px;
       border-radius: 14px;
       font-size: 14px;
       font-weight: 700;
@@ -148,14 +152,14 @@
 
     .btn-skip:active {
       transform: scale(0.92);
-      background: rgba(0, 210, 255, 0.2);
+      background: rgba(0, 210, 255, 0.25);
     }
 
     /* Speed Selector Box */
     .speed-container {
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      padding: 12px 16px;
+      padding: 10px 16px;
       border-radius: 16px;
       display: flex;
       justify-content: space-between;
@@ -179,7 +183,7 @@
       z-index: 1;
       margin-top: 25px;
       text-align: center;
-      font-size: 12px;
+      font-size: 11px;
       color: #6e7681;
       line-height: 1.6;
     }
@@ -228,6 +232,11 @@
   </footer>
 
   <script>
+    // Initialize Telegram Mini App
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
     const urlParams = new URLSearchParams(window.location.search);
     const fileId = urlParams.get('file_id');
     const name = urlParams.get('name');
