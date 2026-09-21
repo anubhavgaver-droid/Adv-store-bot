@@ -4,6 +4,7 @@ import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from pyrogram.enums import ChatMemberStatus
+from pyrogram.errors import FloodWait
 from bot import Bot
 from helper_func import encode, admin
 
@@ -48,7 +49,7 @@ async def is_bot_admin(client: Client, chat_id: int) -> bool:
 
 
 # ==============================================================================
-# 1. /batch Command Handler
+# 1. /batch Command Handler (FIXED)
 # ==============================================================================
 @Bot.on_message(filters.private & admin & filters.command('batch'))
 async def batch(client: Client, message: Message):
@@ -74,7 +75,7 @@ async def batch(client: Client, message: Message):
             await first_message.reply("❌ Invalid Link or Forwarded Message! Please try again.", quote=True)
             continue
 
-        # ⚠️ Check: Bot channel mein Admin hai ya nahi
+        # Check: Bot channel mein Admin hai ya nahi
         if not await is_bot_admin(client, f_chat_id):
             await first_message.reply(
                 "⚠️ **Warning:** Main is channel mein **Admin** nahi hoon!\n\n"
@@ -123,22 +124,30 @@ async def batch(client: Client, message: Message):
 
     # --- AGAR MESSAGE OTHER CHANNEL KA HAI TOH DB_CHANNEL MEIN COPY KAREIN ---
     if f_chat_id != client.db_channel.id:
-        status_msg = await second_message.reply("⏳ Messages is being stored in DB Channel... Please wait!", quote=True)
+        status_msg = await second_message.reply("⏳ Messages are being stored in DB Channel... Please wait!", quote=True)
         copied_start_id = None
         copied_end_id = None
         
         for msg_id in range(f_msg_id, s_msg_id + 1):
-            try:
-                msg = await client.get_messages(f_chat_id, msg_id)
-                if msg and not msg.empty:
-                    copied = await msg.copy(client.db_channel.id, disable_notification=True)
-                    if copied_start_id is None:
-                        copied_start_id = copied.id
-                    copied_end_id = copied.id
-                    await asyncio.sleep(0.3)
-            except Exception as e:
-                print(f"Error copying msg {msg_id}: {e}")
-                continue
+            while True:
+                try:
+                    msg = await client.get_messages(f_chat_id, msg_id)
+                    if msg and not msg.empty:
+                        copied = await msg.copy(client.db_channel.id, disable_notification=True)
+                        if copied_start_id is None:
+                            copied_start_id = copied.id
+                        copied_end_id = copied.id
+                    
+                    # Rate limit se bachne ke liye 1.5s delay
+                    await asyncio.sleep(1.5)
+                    break # Success par next msg_id par jayein
+
+                except FloodWait as e:
+                    print(f"FloodWait hit: Sleeping for {e.value} seconds...")
+                    await asyncio.sleep(e.value + 1) # Telegram ke bole gaye time tak wait karein
+                except Exception as e:
+                    print(f"Error copying msg {msg_id}: {e}")
+                    break # Koi aur error ho toh skip karein
                 
         await status_msg.delete()
         
@@ -216,7 +225,7 @@ async def link_generator(client: Client, message: Message):
 
 
 # ==============================================================================
-# 3. /custom_batch Command Handler
+# 3. /custom_batch Command Handler (FIXED)
 # ==============================================================================
 @Bot.on_message(filters.private & admin & filters.command("custom_batch"))
 async def custom_batch(client: Client, message: Message):
@@ -238,12 +247,17 @@ async def custom_batch(client: Client, message: Message):
         if user_msg.text and user_msg.text.strip().upper() == "STOP":
             break
 
-        try:
-            sent = await user_msg.copy(client.db_channel.id, disable_notification=True)
-            collected.append(sent.id)
-        except Exception as e:
-            await message.reply(f"❌ Failed to store a message:\n<code>{e}</code>")
-            continue
+        while True:
+            try:
+                sent = await user_msg.copy(client.db_channel.id, disable_notification=True)
+                collected.append(sent.id)
+                await asyncio.sleep(1.5)
+                break
+            except FloodWait as e:
+                await asyncio.sleep(e.value + 1)
+            except Exception as e:
+                await message.reply(f"❌ Failed to store a message:\n<code>{e}</code>")
+                break
 
     await message.reply("✅ Batch collection complete.", reply_markup=ReplyKeyboardRemove())
 
