@@ -1,9 +1,11 @@
 #(©)Codexbotz
 
 import asyncio
+import base64
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from pyrogram.enums import ChatMemberStatus
+from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid
 from bot import Bot
 from helper_func import encode, admin
 
@@ -48,7 +50,7 @@ async def is_bot_admin(client: Client, chat_id: int) -> bool:
 
 
 # ==============================================================================
-# 1. /batch Command Handler (NO COPYING - DIRECT LINK)
+# 1. /batch Command Handler (DIRECT LINK - NO COPYING)
 # ==============================================================================
 @Bot.on_message(filters.private & admin & filters.command('batch'))
 async def batch(client: Client, message: Message):
@@ -121,18 +123,26 @@ async def batch(client: Client, message: Message):
 
         break
 
-    # DIRECT LINK GENERATION (Target Channel ki ID se hi link banega)
-    # Target Channel ID aur Message Range ko encode kar rahe hain
+    # 🚀 NO COPYING NEEDED: Direct Channel IDs se Range String Encode karna
+    # Absolute value target channel ID aur first/last message ID ke saath
     string = f"get-{f_msg_id * abs(f_chat_id)}-{s_msg_id * abs(f_chat_id)}"
     base64_string = await encode(string)
     link = f"https://t.me/{client.username}?start={base64_string}"
     
+    total_files = (s_msg_id - f_msg_id) + 1
     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Share URL", url=f'https://telegram.me/share/url?url={link}')]])
-    await second_message.reply_text(f"<b>Here is your batch link</b>\n\n{link}", quote=True, reply_markup=reply_markup)
+    
+    await second_message.reply_text(
+        f"<b>Here is your batch link</b>\n\n"
+        f"📦 <b>Total Files:</b> {total_files}\n"
+        f"🔗 <b>Link:</b> {link}", 
+        quote=True, 
+        reply_markup=reply_markup
+    )
 
 
 # ==============================================================================
-# 2. /genlink Command Handler (NO COPYING - DIRECT LINK)
+# 2. /genlink Command Handler (DIRECT LINK - NO COPYING)
 # ==============================================================================
 @Bot.on_message(filters.private & admin & filters.command('genlink'))
 async def link_generator(client: Client, message: Message):
@@ -162,12 +172,12 @@ async def link_generator(client: Client, message: Message):
                 )
                 continue
             
-            # Target Channel ID se Direct Link
+            # Channel ID aur Message ID directly use karenge
             final_chat_id = chat_id
             final_msg_id = msg_id
             break
         else:
-            # Agar direct PM mein message bheja hai toh ise DB Channel mein dalna padega
+            # Agar PM mein direct bheja gaya hai tabhi DB Channel me save karenge
             try:
                 post_msg = await channel_message.copy(chat_id=client.db_channel.id, disable_notification=True)
                 final_chat_id = client.db_channel.id
