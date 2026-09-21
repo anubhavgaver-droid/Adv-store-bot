@@ -1,11 +1,10 @@
 #(©)Codexbotz
 
 import asyncio
-import base64
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from pyrogram.enums import ChatMemberStatus
-from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid
+from pyrogram.errors import FloodWait
 from bot import Bot
 from helper_func import encode, admin
 
@@ -50,7 +49,7 @@ async def is_bot_admin(client: Client, chat_id: int) -> bool:
 
 
 # ==============================================================================
-# 1. /batch Command Handler (DIRECT LINK - NO COPYING)
+# 1. /batch Command Handler (FIXED)
 # ==============================================================================
 @Bot.on_message(filters.private & admin & filters.command('batch'))
 async def batch(client: Client, message: Message):
@@ -123,26 +122,53 @@ async def batch(client: Client, message: Message):
 
         break
 
-    # 🚀 NO COPYING NEEDED: Direct Channel IDs se Range String Encode karna
-    # Absolute value target channel ID aur first/last message ID ke saath
-    string = f"get-{f_msg_id * abs(f_chat_id)}-{s_msg_id * abs(f_chat_id)}"
+    # --- AGAR MESSAGE OTHER CHANNEL KA HAI TOH DB_CHANNEL MEIN COPY KAREIN ---
+    if f_chat_id != client.db_channel.id:
+        status_msg = await second_message.reply("⏳ Messages are being stored in DB Channel... Please wait!", quote=True)
+        copied_start_id = None
+        copied_end_id = None
+        
+        for msg_id in range(f_msg_id, s_msg_id + 1):
+            while True:
+                try:
+                    msg = await client.get_messages(f_chat_id, msg_id)
+                    if msg and not msg.empty:
+                        copied = await msg.copy(client.db_channel.id, disable_notification=True)
+                        if copied_start_id is None:
+                            copied_start_id = copied.id
+                        copied_end_id = copied.id
+                    
+                    # Rate limit se bachne ke liye 1.5s delay
+                    await asyncio.sleep(1.5)
+                    break # Success par next msg_id par jayein
+
+                except FloodWait as e:
+                    print(f"FloodWait hit: Sleeping for {e.value} seconds...")
+                    await asyncio.sleep(e.value + 1) # Telegram ke bole gaye time tak wait karein
+                except Exception as e:
+                    print(f"Error copying msg {msg_id}: {e}")
+                    break # Koi aur error ho toh skip karein
+                
+        await status_msg.delete()
+        
+        if copied_start_id and copied_end_id:
+            f_msg_id = copied_start_id
+            s_msg_id = copied_end_id
+        else:
+            await second_message.reply("❌ Unable to fetch/copy messages from target channel.")
+            return
+
+    # Link Generation using DB Channel IDs
+    string = f"get-{f_msg_id * abs(client.db_channel.id)}-{s_msg_id * abs(client.db_channel.id)}"
     base64_string = await encode(string)
     link = f"https://t.me/{client.username}?start={base64_string}"
     
-    total_files = (s_msg_id - f_msg_id) + 1
     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Share URL", url=f'https://telegram.me/share/url?url={link}')]])
-    
-    await second_message.reply_text(
-        f"<b>Here is your batch link</b>\n\n"
-        f"📦 <b>Total Files:</b> {total_files}\n"
-        f"🔗 <b>Link:</b> {link}", 
-        quote=True, 
-        reply_markup=reply_markup
-    )
+    await second_message.reply_text(f"<b>Here is your link</b>\n\n{link}", quote=True, reply_markup=reply_markup)
 
 
 # ==============================================================================
-# 2. /genlink Command Handler (DIRECT LINK - NO COPYING)
+# 2. /genlink Command Handler
 # ==============================================================================
 @Bot.on_message(filters.private & admin & filters.command('genlink'))
 async def link_generator(client: Client, message: Message):
@@ -172,23 +198,78 @@ async def link_generator(client: Client, message: Message):
                 )
                 continue
             
-            # Channel ID aur Message ID directly use karenge
-            final_chat_id = chat_id
-            final_msg_id = msg_id
-            break
+            # DB Channel mein copy karke permanent link banana
+            try:
+                target_msg = await client.get_messages(chat_id, msg_id)
+                post_msg = await target_msg.copy(chat_id=client.db_channel.id, disable_notification=True)
+                final_msg_id = post_msg.id
+                break
+            except Exception as e:
+                await channel_message.reply(f"❌ Error fetching/copying post: {e}", quote=True)
+                continue
         else:
-            # Agar PM mein direct bheja gaya hai tabhi DB Channel me save karenge
+            # Direct Message sent in PM
             try:
                 post_msg = await channel_message.copy(chat_id=client.db_channel.id, disable_notification=True)
-                final_chat_id = client.db_channel.id
                 final_msg_id = post_msg.id
                 break
             except Exception as e:
                 await channel_message.reply(f"❌ Error saving message: {e}", quote=True)
                 continue
 
-    base64_string = await encode(f"get-{final_msg_id * abs(final_chat_id)}")
+    base64_string = await encode(f"get-{final_msg_id * abs(client.db_channel.id)}")
     link = f"https://t.me/{client.username}?start={base64_string}"
     
     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Share URL", url=f'https://telegram.me/share/url?url={link}')]])
     await channel_message.reply_text(f"<b>Here is your link</b>\n\n{link}", quote=True, reply_markup=reply_markup)
+
+
+# ==============================================================================
+# 3. /custom_batch Command Handler (FIXED)
+# ==============================================================================
+@Bot.on_message(filters.private & admin & filters.command("custom_batch"))
+async def custom_batch(client: Client, message: Message):
+    collected = []
+    STOP_KEYBOARD = ReplyKeyboardMarkup([["STOP"]], resize_keyboard=True)
+
+    await message.reply("Send all messages you want to include in batch.\n\nPress STOP when you're done.", reply_markup=STOP_KEYBOARD)
+
+    while True:
+        try:
+            user_msg = await client.ask(
+                chat_id=message.chat.id,
+                text="Waiting for files/messages...\nPress STOP to finish.",
+                timeout=60
+            )
+        except asyncio.TimeoutError:
+            break
+
+        if user_msg.text and user_msg.text.strip().upper() == "STOP":
+            break
+
+        while True:
+            try:
+                sent = await user_msg.copy(client.db_channel.id, disable_notification=True)
+                collected.append(sent.id)
+                await asyncio.sleep(1.5)
+                break
+            except FloodWait as e:
+                await asyncio.sleep(e.value + 1)
+            except Exception as e:
+                await message.reply(f"❌ Failed to store a message:\n<code>{e}</code>")
+                break
+
+    await message.reply("✅ Batch collection complete.", reply_markup=ReplyKeyboardRemove())
+
+    if not collected:
+        await message.reply("❌ No messages were added to batch.")
+        return
+
+    start_id = collected[0] * abs(client.db_channel.id)
+    end_id = collected[-1] * abs(client.db_channel.id)
+    string = f"get-{start_id}-{end_id}"
+    base64_string = await encode(string)
+    link = f"https://t.me/{client.username}?start={base64_string}"
+
+    reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Share URL", url=f'https://telegram.me/share/url?url={link}')]])
+    await message.reply(f"<b>Here is your custom batch link:</b>\n\n{link}", reply_markup=reply_markup)
