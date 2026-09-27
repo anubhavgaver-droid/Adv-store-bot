@@ -214,125 +214,126 @@ async def start_command(client: Client, message: Message):
         codeflix_msgs = []
         app_url = getattr(URL, 'rstrip', lambda x: URL)('/') if 'URL' in globals() and URL else render_domain.rstrip('/')
 
-        for msg in messages:
-            await asyncio.sleep(0.05)
-
-            if cancel_tasks.get(user_id, False) is True:
-                break
-
-            if msg.service or (not msg.text and not msg.media):
-                continue  
-
-            await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.UPLOAD_DOCUMENT)
-
-            if bool(custom_caption_val):
-                prev_cap = "" if not msg.caption else msg.caption.html
-                f_name = msg.document.file_name if msg.document and hasattr(msg.document, 'file_name') else ""
-                caption = custom_caption_val.format(previouscaption=prev_cap, filename=f_name)
-            else:
-                caption = "" if not msg.caption else msg.caption.html
-
-            # -------------------------------------------------------------
-            # 🎵 Telegram Mini App Player (Premium Only Restriction)
-            # -------------------------------------------------------------
-            button_list = []
-            if msg.media and (msg.audio or msg.document or msg.video):
-                if is_premium:
-                    media_obj = msg.audio or msg.document or msg.video
-                    f_name = getattr(media_obj, 'file_name', 'audio.mp3') or 'audio.mp3'
-                    encoded_name = urllib.parse.quote(f_name)
-                    stream_link = f"{app_url}/?file_id={msg.id}&name={encoded_name}"
-                    
-                    # Telegram Mini App Button (opens inside Telegram popup)
-                    button_list.append([
-                        InlineKeyboardButton(
-                            "▶️ Watch / Listen Online", 
-                            web_app=WebAppInfo(url=stream_link)
-                        )
-                    ])
-                else:
-                    # Non-Premium User Button
-                    button_list.append([
-                        InlineKeyboardButton(
-                            "🔒 Watch Online (Prem Only)", 
-                            callback_data="premium"
-                        )
-                    ])
-
-            if msg.reply_markup and hasattr(msg.reply_markup, 'inline_keyboard'):
-                for row in msg.reply_markup.inline_keyboard:
-                    button_list.append(row)
-
-            reply_markup = InlineKeyboardMarkup(button_list) if button_list else (msg.reply_markup if DISABLE_CHANNEL_BUTTON else None)
-            # -------------------------------------------------------------
-
-            try:
-                copied_msg = await msg.copy(
-                    chat_id=message.from_user.id, 
-                    caption=caption, 
-                    parse_mode=ParseMode.HTML, 
-                    reply_markup=reply_markup, 
-                    protect_content=protect_content_val
-                )
-                codeflix_msgs.append(copied_msg)
-            except FloodWait as e:
-                await asyncio.sleep(e.x)
-                if cancel_tasks.get(user_id, False) is True: 
-                    break
-                copied_msg = await msg.copy(
-                    chat_id=message.from_user.id, 
-                    caption=caption, 
-                    parse_mode=ParseMode.HTML, 
-                    reply_markup=reply_markup, 
-                    protect_content=protect_content_val
-                )
-                codeflix_msgs.append(copied_msg)
-            except Exception:
-                pass
-
-            await asyncio.sleep(1)
-
-        was_cancelled = cancel_tasks.pop(user_id, False)
-
         try:
-            await temp_msg.delete()
-        except Exception:
-            pass
+            for msg in messages:
+                await asyncio.sleep(0.05)
 
-        if was_cancelled:
-            await message.reply_text("<blockquote>❌ <b>Fɪʟᴇ Dᴇʟɪᴠᴇʀʏ Hᴀs Bᴇᴇɴ CᴀɴᴄᴇʟʟᴇD Sᴜᴄᴄᴇssғᴜʟʟʏ.</b></blockquote>")
-            return
+                if cancel_tasks.get(user_id, False) is True:
+                    break
 
-        if FILE_AUTO_DELETE > 0:
-            notification_msg = await message.reply_text(
-                f"<blockquote><b>Tʜɪs Fɪʟᴇ Wɪʟʟ Bᴇ Dᴇʟᴇᴛᴇᴅ Iɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ Sᴀᴠᴇ Oʀ Fᴏʀᴡᴀʀᴅ Iᴛ Tᴏ Yᴏᴜʀ Sᴀᴠᴇᴅ MᴇssᴀɢES Bᴇғᴏʀᴇ Iᴛ Gᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b></blockquote>"
-            )
+                if msg.service or (not msg.text and not msg.media):
+                    continue  
 
-            await asyncio.sleep(FILE_AUTO_DELETE)
+                await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.UPLOAD_DOCUMENT)
 
-            for snt_msg in codeflix_msgs:    
-                if snt_msg:
-                    try:    
-                        await snt_msg.delete()  
-                    except Exception:
-                        pass
+                if bool(custom_caption_val):
+                    prev_cap = "" if not msg.caption else msg.caption.html
+                    f_name = msg.document.file_name if msg.document and hasattr(msg.document, 'file_name') else ""
+                    caption = custom_caption_val.format(previouscaption=prev_cap, filename=f_name)
+                else:
+                    caption = "" if not msg.caption else msg.caption.html
+
+                # -------------------------------------------------------------
+                # 🎵 Telegram Mini App Player (Premium Only Restriction)
+                # -------------------------------------------------------------
+                button_list = []
+                if msg.media and (msg.audio or msg.document or msg.video):
+                    if is_premium:
+                        media_obj = msg.audio or msg.document or msg.video
+                        f_name = getattr(media_obj, 'file_name', 'audio.mp3') or 'audio.mp3'
+                        encoded_name = urllib.parse.quote(f_name)
+                        stream_link = f"{app_url}/?file_id={msg.id}&name={encoded_name}"
+                        
+                        # Telegram Mini App Button (opens inside Telegram popup)
+                        button_list.append([
+                            InlineKeyboardButton(
+                                "▶️ Watch / Listen Online", 
+                                web_app=WebAppInfo(url=stream_link)
+                            )
+                        ])
+                    else:
+                        # Non-Premium User Button
+                        button_list.append([
+                            InlineKeyboardButton(
+                                "🔒 Watch Online (Prem Only)", 
+                                callback_data="premium"
+                            )
+                        ])
+
+                if msg.reply_markup and hasattr(msg.reply_markup, 'inline_keyboard'):
+                    for row in msg.reply_markup.inline_keyboard:
+                        button_list.append(row)
+
+                reply_markup = InlineKeyboardMarkup(button_list) if button_list else (msg.reply_markup if DISABLE_CHANNEL_BUTTON else None)
+                # -------------------------------------------------------------
+
+                try:
+                    copied_msg = await msg.copy(
+                        chat_id=message.from_user.id, 
+                        caption=caption, 
+                        parse_mode=ParseMode.HTML, 
+                        reply_markup=reply_markup, 
+                        protect_content=protect_content_val
+                    )
+                    codeflix_msgs.append(copied_msg)
+                except FloodWait as e:
+                    await asyncio.sleep(e.x)
+                    if cancel_tasks.get(user_id, False) is True: 
+                        break
+                    copied_msg = await msg.copy(
+                        chat_id=message.from_user.id, 
+                        caption=caption, 
+                        parse_mode=ParseMode.HTML, 
+                        reply_markup=reply_markup, 
+                        protect_content=protect_content_val
+                    )
+                    codeflix_msgs.append(copied_msg)
+                except Exception:
+                    pass
+
+                await asyncio.sleep(1)
+
+        finally:
+            was_cancelled = cancel_tasks.pop(user_id, False)
 
             try:
-                reload_url = (
-                    f"https://t.me/{bot_username}?start={message.command[1]}"
-                    if message.command and len(message.command) > 1
-                    else None
-                )
-                keyboard = InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("Gᴇᴛ Fɪʟᴇ Aɢᴀɪɴ!", url=reload_url)]]
-                ) if reload_url else None
-
-                await notification_msg.edit(
-                    "<blockquote><b>Yᴏᴜʀ Vɪᴅᴇᴏ / Fɪʟᴇ Is Sᴜᴄᴄᴇssғᴜʟʟʏ Dᴇʟᴇᴛᴇᴅ !!\n\nCʟɪᴄᴋ Bᴇʟᴏᴡ BᴜᴛᴛᴏN Tᴏ Gᴇᴛ Yᴏᴜʀ Dᴇʟᴇᴛᴇᴅ Vɪᴅᴇᴏ / Fɪʟᴇ 👇</b></blockquote>",
-                    reply_markup=keyboard
-                )
+                await temp_msg.delete()
             except Exception:
                 pass
+
+            if was_cancelled:
+                await message.reply_text("<blockquote>❌ <b>Fɪʟᴇ Dᴇʟɪᴠᴇʀʏ Hᴀs Bᴇᴇɴ CᴀɴᴄᴇʟʟᴇD Sᴜᴄᴄᴇssғᴜʟʟʏ.</b></blockquote>")
+
+            if codeflix_msgs and FILE_AUTO_DELETE > 0:
+                notification_msg = await message.reply_text(
+                    f"<blockquote><b>Tʜɪs Fɪʟᴇ Wɪʟʟ Bᴇ Dᴇʟᴇᴛᴇᴅ Iɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ Sᴀᴠᴇ Oʀ Fᴏʀᴡᴀʀᴅ Iᴛ Tᴏ Yᴏᴜʀ Sᴀᴠᴇᴅ MᴇssᴀɢES Bᴇғᴏʀᴇ Iᴛ Gᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b></blockquote>"
+                )
+
+                await asyncio.sleep(FILE_AUTO_DELETE)
+
+                for snt_msg in codeflix_msgs:    
+                    if snt_msg:
+                        try:    
+                            await snt_msg.delete()  
+                        except Exception:
+                            pass
+
+                try:
+                    reload_url = (
+                        f"https://t.me/{bot_username}?start={message.command[1]}"
+                        if message.command and len(message.command) > 1
+                        else None
+                    )
+                    keyboard = InlineKeyboardMarkup(
+                        [[InlineKeyboardButton("Gᴇᴛ Fɪʟᴇ Aɢᴀɪɴ!", url=reload_url)]]
+                    ) if reload_url else None
+
+                    await notification_msg.edit(
+                        "<blockquote><b>Yᴏᴜʀ Vɪᴅᴇᴏ / Fɪʟᴇ Is Sᴜᴄᴄᴇssғᴜʟʟʏ Dᴇʟᴇᴛᴇᴅ !!\n\nCʟɪᴄᴋ Bᴇʟᴏᴡ BᴜᴛᴛᴏN Tᴏ Gᴇᴛ Yᴏᴜʀ Dᴇʟᴇᴛᴇᴅ Vɪᴅᴇᴏ / Fɪʟᴇ 👇</b></blockquote>",
+                        reply_markup=keyboard
+                    )
+                except Exception:
+                    pass
     else:
         try:
             sticker_msg = await message.reply_sticker(sticker=START_STICKER)
@@ -648,7 +649,7 @@ async def add_premium_user_command(client: Client, msg: Message):
             pass
 
     except ValueError:
-        await msg.reply_text("<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Iɴᴘᴜᴛ. Pʟᴇᴀsᴇ Eɴsᴜʀᴇ Uꜱᴇʀ ID Aɴᴅ Tɪᴍᴇ Vᴀʟᴜᴇ Aʀᴇ NᴜᴍʙᴇRs.</b></blockquote>")
+        await msg.reply_text("<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Iɴᴘᴜᴛ. Pʟᴇᴀsᴇ Eɴsᴜʀᴇ UꜱᴇR ID Aɴᴅ Tɪᴍᴇ Vᴀʟᴜᴇ Aʀᴇ NᴜᴍʙᴇRs.</b></blockquote>")
     except Exception as e:
         await msg.reply_text(f"<blockquote>⚠️ <b>Aɴ EʀʀᴏR Oᴄᴄᴜʀʀᴇᴅ:</b> <code>{str(e)}</code></blockquote>")
 
@@ -663,7 +664,7 @@ async def pre_remove_user(client: Client, msg: Message):
         await remove_premium(user_id)
         await msg.reply_text(f"<blockquote>✅ <b>Uꜱᴇʀ <code>{user_id}</code> Hᴀs Bᴇᴇɴ Rᴇᴍᴏᴠᴇᴅ.</b></blockquote>")
     except ValueError:
-        await msg.reply_text("<blockquote>⚠️ <b>Uꜱᴇʀ ID Mᴜsᴛ Bᴇ Aɴ IɴᴛᴇGFᴇʀ Oʀ Nᴏᴛ Aᴠᴀɪʟᴀʙʟᴇ Iɴ DᴀᴛᴀBᴀsᴇ.</b></blockquote>")
+        await msg.reply_text("<blockquote>⚠️ <b>Uꜱᴇʀ ID Mᴜsᴛ Bᴇ Aɴ IɴᴛᴇGFᴇʀ Oʀ Nᴏᴛ AᴠᴀɪʟᴀʙʟE Iɴ DᴀᴛᴀBᴀsᴇ.</b></blockquote>")
 
 
 @Bot.on_message(filters.command('premium_users') & filters.private & admin)
