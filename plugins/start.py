@@ -157,7 +157,7 @@ async def start_command(client: Client, message: Message):
 
                 btn = [
                     [
-                        InlineKeyboardButton("• Vᴇʀɪғʏ Nᴏᴡ •", web_app=WebAppInfo(url=render_verify_link)),
+                        InlineKeyboardButton("• Vᴇʀɪғʏ Nᴏᴡ •", url=render_verify_link),
                         InlineKeyboardButton("• Tᴜᴛᴏʀɪᴀʟ •", url=tut_vid)
                     ],
                     [
