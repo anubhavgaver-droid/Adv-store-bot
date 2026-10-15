@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import time
+from datetime import date
 import motor.motor_asyncio
 import config
 from config import (
@@ -22,9 +23,11 @@ BOT_USERNAME = getattr(config, 'BOT_USERNAME', 'SmartfilestorebyAcbot')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Updated Default Verify Structure for Dual Steps & Midnight Reset
 default_verify = {
-    'is_verified': False,
-    'verified_time': 0,
+    'step': 0,                   # 0 = No verification, 1 = Step 1 done (Gap active), 2 = Step 2 done (Free till midnight)
+    'step1_time': 0,             # Timestamp when Step 1 was completed
+    'last_date': "",             # Date string (YYYY-MM-DD) for midnight reset check
     'verify_token': "",
     'link': ""
 }
@@ -127,7 +130,6 @@ class Rohit:
         return settings.get('auto_delete_mode', True)
 
     async def save_message_for_deletion(self, chat_id: int, message_ids: list):
-        """Message delete request ko DB me dynamic timestamp ke sath register karta hai"""
         timer = await self.get_del_timer()
         delete_at = time.time() + timer
         await self.del_timer_data.insert_one({
@@ -137,12 +139,10 @@ class Rohit:
         })
 
     async def dynamic_auto_delete_handler(self, client, chat_id: int, message_ids: list):
-        """Live DB config read karke dynamically deletion wait/trigger karta hai"""
         is_enabled = await self.get_auto_delete_status()
         if not is_enabled:
             return
 
-        # Fetch current dynamic timer live from DB settings
         current_timer = await self.get_del_timer()
         await asyncio.sleep(current_timer)
 
@@ -233,7 +233,7 @@ class Rohit:
     async def reqChannel_exist(self, channel_id: int) -> bool:
         return await self.channel_exist(channel_id)
 
-    # ================= VERIFICATION MANAGEMENT =================
+    # ================= DUAL VERIFICATION & MIDNIGHT RESET MANAGEMENT =================
     async def save_verify_token(self, user_id: int, token: str):
         await self.verify_tokens.delete_many({'user_id': user_id})
         await self.verify_tokens.insert_one({
@@ -244,7 +244,21 @@ class Rohit:
 
     async def db_verify_status(self, user_id: int) -> dict:
         user = await self.user_data.find_one({'_id': user_id})
-        return user.get('verify_status', default_verify.copy()) if user else default_verify.copy()
+        status = user.get('verify_status', default_verify.copy()) if user else default_verify.copy()
+        
+        # 1. Midnight Reset Check (अगर दिन बदल गया है, तो रात 12 बजे के बाद सब रीसेट हो जाएगा)
+        today_str = date.today().isoformat()
+        if status.get('last_date') != today_str:
+            status = {
+                'step': 0,
+                'step1_time': 0,
+                'last_date': today_str,
+                'verify_token': "",
+                'link': ""
+            }
+            await self.db_update_verify_status(user_id, status)
+            
+        return status
 
     async def db_update_verify_status(self, user_id: int, verify: dict):
         await self.user_data.update_one({'_id': user_id}, {'$set': {'verify_status': verify}})
@@ -252,15 +266,49 @@ class Rohit:
     async def get_verify_status(self, user_id: int) -> dict:
         return await self.db_verify_status(user_id)
 
-    async def update_verify_status(self, user_id: int, verify_token="", is_verified=False, verified_time=0, link=""):
+    async def update_verify_status(self, user_id: int, step=0, step1_time=0, verify_token="", link=""):
         current = await self.db_verify_status(user_id)
+        today_str = date.today().isoformat()
+        
         current.update({
+            'step': step,
+            'step1_time': step1_time if step1_time else current.get('step1_time', 0),
+            'last_date': today_str,
             'verify_token': verify_token,
-            'is_verified': is_verified,
-            'verified_time': verified_time,
             'link': link
         })
         await self.db_update_verify_status(user_id, current)
+
+    async def is_user_verified(self, user_id: int) -> tuple[bool, int]:
+        """
+        यह फंक्शन डायरेक्ट चेक करके बताएगा कि यूजर वेरीफाइड है या नहीं,
+        और कौन सा स्टेप चाहिए (Returns: (is_verified, required_step))
+        """
+        status = await self.db_verify_status(user_id)
+        step = status.get('step', 0)
+        step1_time = status.get('step1_time', 0)
+        current_time = time.time()
+
+        # config.py से VERIFY_EXPIRE टाइम हासिल करें (सेकंड्स में)
+        settings = await self.get_bot_settings()
+        gap_expire_time = int(settings.get('verify_expire', VERIFY_EXPIRE))
+
+        # Case 0: पहला वेरिफिकेशन नहीं हुआ
+        if step == 0:
+            return False, 1  # Need Step 1
+
+        # Case 1: पहला वेरिफिकेशन हो चुका है (गैप टाइमर चल रहा है)
+        elif step == 1:
+            if (current_time - step1_time) < gap_expire_time:
+                return True, 0  # Allowed within Gap Time!
+            else:
+                return False, 2  # Gap finished! Need Step 2
+
+        # Case 2: दूसरा वेरिफिकेशन हो चुका है (रात 12 बजे तक फ्री)
+        elif step == 2:
+            return True, 0  # Fully Verified till midnight
+
+        return False, 1
 
     async def set_verify_count(self, user_id: int, count: int):
         await self.sex_data.update_one({'_id': user_id}, {'$set': {'verify_count': count}}, upsert=True)
