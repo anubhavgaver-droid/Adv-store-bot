@@ -1,4 +1,4 @@
-import asyncio
+Import asyncio
 import os
 import random
 import sys
@@ -93,8 +93,6 @@ async def start_command(client: Client, message: Message):
         if base64_string.startswith("mbatch_") or base64_string.startswith("batch_"):
             return await handle_multi_batch_start(client, message, base64_string)
 
-        verify_status = await db.get_verify_status(user_id)
-
         verify_mode = bot_settings.get('verify_mode', True)
         shortlink_url = bot_settings.get('shortlink_url', SHORTLINK_URL)
         shortlink_api = bot_settings.get('shortlink_api', SHORTLINK_API)
@@ -117,32 +115,53 @@ async def start_command(client: Client, message: Message):
         except Exception as e:
             logger.error(f"Error syncing settings to MongoDB for Express Proxy: {e}")
 
-        if verify_mode and shortlink_url and shortlink_api:
-            if verify_status['is_verified'] and verify_expire < (time.time() - verify_status['verified_time']):
-                await db.update_verify_status(user_id, is_verified=False)
-                verify_status['is_verified'] = False 
-
+        # ==============================================================================
+        # DUAL VERIFICATION & GAP TIMER LOGIC (STEP 1 & STEP 2)
+        # ==============================================================================
+        if verify_mode and shortlink_url and shortlink_api and not is_premium:
+            # यदि यूजर ने वेरिफिकेशन लिंक पर क्लिक करके टोकन रिडायरेक्ट किया है
             if "verify_" in text:
                 _, token = text.split("_", 1)
-
-                await db.update_verify_status(user_id, is_verified=True, verified_time=time.time())
-                current = await db.get_verify_count(user_id)
-                await db.set_verify_count(user_id, current + 1)
-
-                file_id = verify_status.get("link", "")
+                user_status = await db.get_verify_status(user_id)
+                current_step = user_status.get('step', 0)
+                file_id = user_status.get("link", "")
                 if not file_id:
-                    file_id = base64_string  
+                    file_id = base64_string
 
-                btn = [[InlineKeyboardButton("🚀 Gᴇᴛ Fɪʟᴇ Nᴏᴡ", url=f"https://t.me/{bot_username}?start={file_id}")]]
-                
-                return await message.reply_text(
-                    f"<blockquote>✅ <b>Tᴏᴋᴇɴ Vᴇʀɪғɪᴇᴅ!</b>\n\nVᴀʟɪᴅ Fᴏʀ: {get_exp_time(verify_expire)}\n\n"
-                    "Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴ Bᴇʟᴏᴡ Tᴏ Gᴇᴛ Yᴏᴜʀ Fɪʟᴇ 👇</blockquote>",
-                    reply_markup=InlineKeyboardMarkup(btn),
-                    protect_content=protect_content_val
-                )
+                if current_step == 0:
+                    # Step 1 पूरा हुआ -> अब Step 1 टाइम सेव करें और step = 1 करें
+                    await db.update_verify_status(user_id, step=1, step1_time=time.time(), verify_token="", link=file_id)
+                    current = await db.get_verify_count(user_id)
+                    await db.set_verify_count(user_id, current + 1)
 
-            if not verify_status['is_verified'] and not is_premium:
+                    btn = [[InlineKeyboardButton("🚀 Cʟɪᴄᴋ Hᴇʀᴇ Tᴏ Gᴇᴛ Sᴛᴇᴘ 1/2 Fɪʟᴇ", url=f"https://t.me/{bot_username}?start={file_id}")]]
+                    return await message.reply_text(
+                        f"<blockquote>✅ <b>Sᴛᴇᴘ 1/2 VᴇʀɪғɪᴇD Sᴜᴄᴄᴇssғᴜʟʟʏ!</b>\n\n"
+                        f"<b>Gᴀᴘ Tɪᴍᴇ:</b> {get_exp_time(verify_expire)}\n\n"
+                        "Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴ Bᴇʟᴏᴡ Tᴏ PʀᴏᴄᴇᴇD 👇</blockquote>",
+                        reply_markup=InlineKeyboardMarkup(btn),
+                        protect_content=protect_content_val
+                    )
+
+                elif current_step == 1:
+                    # Step 2 पूरा हुआ -> अब step = 2 (रात 12 बजे तक फ्री) सेट करें
+                    await db.update_verify_status(user_id, step=2, verify_token="", link=file_id)
+                    current = await db.get_verify_count(user_id)
+                    await db.set_verify_count(user_id, current + 1)
+
+                    btn = [[InlineKeyboardButton("🚀 Gᴇᴛ Fɪʟᴇ Nᴏᴡ", url=f"https://t.me/{bot_username}?start={file_id}")]]
+                    return await message.reply_text(
+                        f"<blockquote>✅ <b>Sᴛᴇᴘ 2/2 Vᴇʀɪғɪᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b>\n\n"
+                        "🎉 Yᴏᴜ ᴀʀᴇ ɴᴏᴡ ғʀᴇᴇ ᴛɪʟʟ ᴍɪᴅɴɪɢʜᴛ (12:00 AM)!\n\n"
+                        "Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴ Bᴇʟᴏᴡ Tᴏ Gᴇᴛ Yᴏᴜʀ Fɪʟᴇ 👇</blockquote>",
+                        reply_markup=InlineKeyboardMarkup(btn),
+                        protect_content=protect_content_val
+                    )
+
+            # चेक करें कि यूजर को वेरिफिकेशन की जरूरत है या नहीं
+            is_verified, req_step = await check_user_verification(user_id)
+
+            if not is_verified:
                 token_length = random.randint(10, 12)
                 token = ''.join(random.choices(string.ascii_letters + string.digits, k=token_length))
                 
@@ -151,21 +170,33 @@ async def start_command(client: Client, message: Message):
                 except Exception as e:
                     logger.error(f"Failed to insert verify token: {e}")
 
-                await db.update_verify_status(user_id, verify_token=token, link=base64_string)
+                # वर्तमान स्टेप के अनुसार टोकन और लिंक सेव करें
+                user_status = await db.get_verify_status(user_id)
+                await db.update_verify_status(
+                    user_id, 
+                    step=user_status.get('step', 0), 
+                    step1_time=user_status.get('step1_time', 0), 
+                    verify_token=token, 
+                    link=base64_string
+                )
                 
                 render_verify_link = f"{render_domain.rstrip('/')}/verify?token={token}"
 
+                step_title = "SᴛᴇP 1/2 Vᴇʀɪғɪᴄᴀᴛɪᴏɴ" if req_step == 1 else "Sᴛᴇᴘ 2/2 VᴇʀɪғɪᴄᴀᴛɪᴏN (Gᴀᴘ Tɪᴍᴇ Oᴠᴇʀ)"
+
                 btn = [
                     [
-                        InlineKeyboardButton("• Vᴇʀɪғʏ Nᴏᴡ •", url=render_verify_link),
+                        InlineKeyboardButton(f"• {step_title} •", url=render_verify_link),
                         InlineKeyboardButton("• Tᴜᴛᴏʀɪᴀʟ •", url=tut_vid)
                     ],
                     [
-                        InlineKeyboardButton("• Bᴜʏ PʀᴇᴍɪᴜM •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)
+                        InlineKeyboardButton("• Bᴜʏ Pʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)
                     ]
                 ]
                 return await message.reply_text(
-                    f"<blockquote><b>Yᴏᴜʀ Tᴏᴋᴇɴ Hᴀs E xᴘɪʀᴇᴅ. Pʟᴇᴀsᴇ Rᴇғʀᴇsʜ Yᴏᴜʀ Tᴏᴋᴇɴ Tᴏ Cᴏɴᴛɪɴᴜᴇ..</b>\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(verify_expire)}</blockquote>",
+                    f"<blockquote><b>⚠️ {step_title} RᴇǫᴜɪʀᴇD!</b>\n\n"
+                    f"Pʟᴇᴀsᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴄᴏᴍᴘʟᴇᴛᴇ ʏᴏᴜʀ ᴠᴇʀɪғɪᴄᴀᴛɪᴏɴ.\n"
+                    f"<b>Vᴇʀɪғʏ Tɪᴍᴇᴏᴜᴛ / Gᴀᴘ:</b> {get_exp_time(verify_expire)}</blockquote>",
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=protect_content_val
                 )
@@ -198,7 +229,7 @@ async def start_command(client: Client, message: Message):
         cancel_tasks[user_id] = False
 
         wait_markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🛠️ Dᴇᴠᴇʟᴏᴘᴇʀ", url="https://t.me/HDFILM0900_BOT", style=enums.ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("🛠️ DᴇᴠᴇʟᴏᴘᴇR", url="https://t.me/HDFILM0900_BOT", style=enums.ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("🌀 Cᴀɴᴄᴇʟ 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)]
         ])
         temp_msg = await message.reply_text("<blockquote><b>🔺 Pʟᴇᴀsᴇ Wᴀɪᴛ...</b></blockquote>", reply_markup=wait_markup)
@@ -244,7 +275,6 @@ async def start_command(client: Client, message: Message):
                         encoded_name = urllib.parse.quote(f_name)
                         stream_link = f"{app_url}/?file_id={msg.id}&name={encoded_name}"
                         
-                        # Telegram Mini App Button (opens inside Telegram popup)
                         button_list.append([
                             InlineKeyboardButton(
                                 "▶️ Watch / Listen Online", 
@@ -252,7 +282,6 @@ async def start_command(client: Client, message: Message):
                             )
                         ])
                     else:
-                        # Non-Premium User Button
                         button_list.append([
                             InlineKeyboardButton(
                                 "🔒 Watch Online (Prem Only)", 
@@ -329,7 +358,7 @@ async def start_command(client: Client, message: Message):
                     ) if reload_url else None
 
                     await notification_msg.edit(
-                        "<blockquote><b>Yᴏᴜʀ Vɪᴅᴇᴏ / Fɪʟᴇ Is Sᴜᴄᴄᴇssғᴜʟʟʏ Dᴇʟᴇᴛᴇᴅ !!\n\nCʟɪᴄᴋ Bᴇʟᴏᴡ BᴜᴛᴛᴏN Tᴏ Gᴇᴛ Yᴏᴜʀ Dᴇʟᴇᴛᴇᴅ Vɪᴅᴇᴏ / Fɪʟᴇ 👇</b></blockquote>",
+                        "<blockquote><b>Yᴏᴜʀ Vɪᴅᴇᴏ / Fɪʟᴇ Is Sᴜᴄᴄᴇssғᴜʟʟʏ Dᴇʟᴇᴛᴇᴅ !!\n\nCʟɪᴄᴋ Bᴇʟᴏᴡ BᴜᴛᴛᴏN Tᴏ Gᴇْت Yᴏᴜʀ Dᴇʟᴇᴛᴇᴅ Vɪᴅᴇᴏ / Fɪʟᴇ 👇</b></blockquote>",
                         reply_markup=keyboard
                     )
                 except Exception:
@@ -456,7 +485,7 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
         mbatch_msg = await message.reply_text(
             f"<blockquote>🎬 <b>Mᴜʟᴛɪ-Bᴀᴛᴄʜ Eᴘɪsᴏᴅᴇs:</b> <code>{batch_id.upper()}</code>\n\n"
             f"👇 <b>Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴs Bᴇʟᴏᴡ Tᴏ Gᴇᴛ Yᴏᴜʀ Eᴘɪsᴏᴅᴇs:</b>\n\n"
-            f"⏳ <i>Tʜɪs ᴍᴇssᴀɢE ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇᴅ ɪɴ 1 ᴍɪɴᴜᴛE.</i></blockquote>",
+            f"⏳ <i>Tʜɪs mᴇssᴀɢE ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇᴅ ɪɴ 1 mɪɴᴜᴛE.</i></blockquote>",
             reply_markup=markup
         )
 
@@ -727,3 +756,467 @@ async def total_verify_count_cmd(client: Client, message: Message):
 async def bcmd(bot: Bot, message: Message):        
     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("• Cʟᴏsᴇ •", callback_data="close")]])
     await message.reply_text(text=f"<blockquote>{CMD_TXT}</blockquote>", reply_markup=reply_markup)
+Import asyncio
+import os
+import random
+import sys
+import re
+import string 
+import time
+import logging
+import traceback
+import urllib.parse
+from datetime import datetime, timedelta
+from pyrogram import Client, filters, __version__, enums
+from pyrogram.enums import ParseMode, ChatAction
+from pyrogram.types import (
+    Message, InlineKeyboardMarkup, InlineKeyboardButton, 
+    CallbackQuery, ReplyKeyboardMarkup, ChatInviteLink, ChatPrivileges,
+    WebAppInfo, LinkPreviewOptions
+)
+from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant, MessageNotModified
+from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated, MessageDeleteForbidden
+from bot import Bot
+from config import *
+from helper_func import *
+from database.database import *
+from database.db_premium import *
+from pytz import timezone
+from plugins.adminz import send_main_settings_panel
+
+
+logger = logging.getLogger(__name__)
+
+BAN_SUPPORT = f"{BAN_SUPPORT}"
+cancel_tasks = {}
+
+def get_db_channel_id(client: Client):
+    if hasattr(client, "db_channel") and client.db_channel:
+        return getattr(client.db_channel, "id", client.db_channel)
+    try:
+        from config import DB_CHANNEL
+        return DB_CHANNEL
+    except Exception:
+        return None
+
+
+# ==============================================================================
+# MAIN /start COMMAND HANDLER
+# ==============================================================================
+@Bot.on_message(filters.command('start') & filters.private)
+async def start_command(client: Client, message: Message):
+    try:
+        await message.react(emoji=random.choice(REACTIONS), big=True)
+    except Exception:
+        try:
+            await message.react(emoji="⚡️", big=True)
+        except Exception:
+            pass
+    
+    user_id = message.from_user.id
+    is_premium = await is_premium_user(user_id)
+    
+    if not await db.present_user(user_id):
+        try:
+            await db.add_user(user_id)
+        except Exception:
+            pass
+
+    if not await is_subscribed(client, user_id):
+        return await not_joined(client, message)
+
+    banned_users = await db.get_ban_users()
+    if user_id in banned_users:
+        return await message.reply_text(
+            "<blockquote>⛔️ <b>Yᴏᴜ Aʀᴇ Bᴀɴɴᴇᴅ Fʀᴏᴍ Uꜱɪɴɢ Tʜɪs Bᴏᴛ.</b>\n\n"
+            "<i>Cᴏɴᴛᴀᴄᴛ sᴜᴘᴘᴏʀᴛ ɪғ ʏᴏᴜ ᴛʜɪɴᴋ ᴛʜɪs ɪs ᴀ ᴍɪsᴛᴀᴋᴇ.</i></blockquote>",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("Cᴏɴᴛᴀᴄᴛ Sᴜᴘᴘᴏʀᴛ", url=BAN_SUPPORT)]]
+            )
+        )
+
+    FILE_AUTO_DELETE = await db.get_del_timer()
+    text = message.text
+
+    bot_settings = await db.get_bot_settings()
+    protect_content_val = bot_settings.get('protect_content', PROTECT_CONTENT)
+    custom_caption_val = bot_settings.get('custom_caption', CUSTOM_CAPTION)
+
+    if len(text) > 7:
+        try:
+            base64_string = text.split(" ", 1)[1]
+        except IndexError:
+            return
+
+        if base64_string.startswith("mbatch_") or base64_string.startswith("batch_"):
+            return await handle_multi_batch_start(client, message, base64_string)
+
+        verify_mode = bot_settings.get('verify_mode', True)
+        shortlink_url = bot_settings.get('shortlink_url', SHORTLINK_URL)
+        shortlink_api = bot_settings.get('shortlink_api', SHORTLINK_API)
+        tut_vid = bot_settings.get('tut_vid', TUT_VID)
+        verify_expire = bot_settings.get('verify_expire', VERIFY_EXPIRE)
+        render_domain = bot_settings.get('render_domain', "https://anubhavvgani.onrender.com")
+
+        bot_username = getattr(getattr(client, 'me', None), 'username', None) or "SmartfilestorebyAcbot"
+
+        try:
+            await db.settings_col.update_one(
+                {"_id": "bot_settings"},
+                {"$set": {
+                    "shortlink_url": shortlink_url,
+                    "shortlink_api": shortlink_api,
+                    "bot_username": bot_username
+                }},
+                upsert=True
+            )
+        except Exception as e:
+            logger.error(f"Error syncing settings to MongoDB for Express Proxy: {e}")
+
+        # ==============================================================================
+        # DUAL VERIFICATION & GAP TIMER LOGIC (STEP 1 & STEP 2)
+        # ==============================================================================
+        if verify_mode and shortlink_url and shortlink_api and not is_premium:
+            # यदि यूजर ने वेरिफिकेशन लिंक पर क्लिक करके टोकन रिडायरेक्ट किया है
+            if "verify_" in text:
+                _, token = text.split("_", 1)
+                user_status = await db.get_verify_status(user_id)
+                current_step = user_status.get('step', 0)
+                file_id = user_status.get("link", "")
+                if not file_id:
+                    file_id = base64_string
+
+                if current_step == 0:
+                    # Step 1 पूरा हुआ -> अब Step 1 टाइम सेव करें और step = 1 करें
+                    await db.update_verify_status(user_id, step=1, step1_time=time.time(), verify_token="", link=file_id)
+                    current = await db.get_verify_count(user_id)
+                    await db.set_verify_count(user_id, current + 1)
+
+                    btn = [[InlineKeyboardButton("🚀 Cʟɪᴄᴋ Hᴇʀᴇ Tᴏ Gᴇᴛ Sᴛᴇᴘ 1/2 Fɪʟᴇ", url=f"https://t.me/{bot_username}?start={file_id}")]]
+                    return await message.reply_text(
+                        f"<blockquote>✅ <b>Sᴛᴇᴘ 1/2 VᴇʀɪғɪᴇD Sᴜᴄᴄᴇssғᴜʟʟʏ!</b>\n\n"
+                        f"<b>Gᴀᴘ Tɪᴍᴇ:</b> {get_exp_time(verify_expire)}\n\n"
+                        "Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴ Bᴇʟᴏᴡ Tᴏ PʀᴏᴄᴇᴇD 👇</blockquote>",
+                        reply_markup=InlineKeyboardMarkup(btn),
+                        protect_content=protect_content_val
+                    )
+
+                elif current_step == 1:
+                    # Step 2 पूरा हुआ -> अब step = 2 (रात 12 बजे तक फ्री) सेट करें
+                    await db.update_verify_status(user_id, step=2, verify_token="", link=file_id)
+                    current = await db.get_verify_count(user_id)
+                    await db.set_verify_count(user_id, current + 1)
+
+                    btn = [[InlineKeyboardButton("🚀 Gᴇᴛ Fɪʟᴇ Nᴏᴡ", url=f"https://t.me/{bot_username}?start={file_id}")]]
+                    return await message.reply_text(
+                        f"<blockquote>✅ <b>Sᴛᴇᴘ 2/2 Vᴇʀɪғɪᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b>\n\n"
+                        "🎉 Yᴏᴜ ᴀʀᴇ ɴᴏᴡ ғʀᴇᴇ ᴛɪʟʟ ᴍɪᴅɴɪɢʜᴛ (12:00 AM)!\n\n"
+                        "Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴ Bᴇʟᴏᴡ Tᴏ Gᴇᴛ Yᴏᴜʀ Fɪʟᴇ 👇</blockquote>",
+                        reply_markup=InlineKeyboardMarkup(btn),
+                        protect_content=protect_content_val
+                    )
+
+            # चेक करें कि यूजर को वेरिफिकेशन की जरूरत है या नहीं
+            is_verified, req_step = await check_user_verification(user_id)
+
+            if not is_verified:
+                token_length = random.randint(10, 12)
+                token = ''.join(random.choices(string.ascii_letters + string.digits, k=token_length))
+                
+                try:
+                    await db.save_verify_token(user_id, token)
+                except Exception as e:
+                    logger.error(f"Failed to insert verify token: {e}")
+
+                # वर्तमान स्टेप के अनुसार टोकन और लिंक सेव करें
+                user_status = await db.get_verify_status(user_id)
+                await db.update_verify_status(
+                    user_id, 
+                    step=user_status.get('step', 0), 
+                    step1_time=user_status.get('step1_time', 0), 
+                    verify_token=token, 
+                    link=base64_string
+                )
+                
+                render_verify_link = f"{render_domain.rstrip('/')}/verify?token={token}"
+
+                step_title = "SᴛᴇP 1/2 Vᴇʀɪғɪᴄᴀᴛɪᴏɴ" if req_step == 1 else "Sᴛᴇᴘ 2/2 VᴇʀɪғɪᴄᴀᴛɪᴏN (Gᴀᴘ Tɪᴍᴇ Oᴠᴇʀ)"
+
+                btn = [
+                    [
+                        InlineKeyboardButton(f"• {step_title} •", url=render_verify_link),
+                        InlineKeyboardButton("• Tᴜᴛᴏʀɪᴀʟ •", url=tut_vid)
+                    ],
+                    [
+                        InlineKeyboardButton("• Bᴜʏ Pʀᴇᴍɪᴜᴍ •", callback_data="premium", style=enums.ButtonStyle.PRIMARY)
+                    ]
+                ]
+                return await message.reply_text(
+                    f"<blockquote><b>⚠️ {step_title} RᴇǫᴜɪʀᴇD!</b>\n\n"
+                    f"Pʟᴇᴀsᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴄᴏᴍᴘʟᴇᴛᴇ ʏᴏᴜʀ ᴠᴇʀɪғɪᴄᴀᴛɪᴏɴ.\n"
+                    f"<b>Vᴇʀɪғʏ Tɪᴍᴇᴏᴜᴛ / Gᴀᴘ:</b> {get_exp_time(verify_expire)}</blockquote>",
+                    reply_markup=InlineKeyboardMarkup(btn),
+                    protect_content=protect_content_val
+                )
+
+        try:
+            decoded_str = await decode(base64_string)
+            argument = decoded_str.split("-")
+        except Exception as e:
+            logger.error(f"Error decoding string {base64_string}: {e}")
+            return await message.reply_text("<blockquote>⚠️ <b>Iɴᴠᴀʟɪᴅ Lɪɴᴋ Oʀ Fɪʟᴇ Hᴀsʜ!</b></blockquote>")
+
+        db_channel_id = abs(get_db_channel_id(client))
+        ids = []
+        if len(argument) == 3:
+            try:
+                start = int(int(argument[1]) / db_channel_id)
+                end = int(int(argument[2]) / db_channel_id)
+                ids = range(start, end + 1) if start <= end else list(range(start, end - 1, -1))
+            except Exception as e:
+                logger.error(f"Error decoding IDs: {e}")
+                return
+            
+        elif len(argument) == 2:
+            try:
+                ids = [int(int(argument[1]) / db_channel_id)]
+            except Exception as e:
+                logger.error(f"Error decoding ID: {e}")
+                return
+
+        cancel_tasks[user_id] = False
+
+        wait_markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🛠️ DᴇᴠᴇʟᴏᴘᴇR", url="https://t.me/HDFILM0900_BOT", style=enums.ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("🌀 Cᴀɴᴄᴇʟ 🌀", callback_data=f"cancel_delivery_{user_id}", style=enums.ButtonStyle.DANGER)]
+        ])
+        temp_msg = await message.reply_text("<blockquote><b>🔺 Pʟᴇᴀsᴇ Wᴀɪᴛ...</b></blockquote>", reply_markup=wait_markup)
+        
+        try:
+            messages = await get_messages(client, ids)
+        except Exception as e:
+            await message.reply_text("<blockquote>⚠️ <b>Sᴏᴍᴇᴛʜɪɴɢ Wᴇɴᴛ Wʀᴏɴɢ!</b></blockquote>")
+            try: await temp_msg.delete()
+            except Exception: pass
+            return
+
+        codeflix_msgs = []
+        app_url = getattr(URL, 'rstrip', lambda x: URL)('/') if 'URL' in globals() and URL else render_domain.rstrip('/')
+
+        try:
+            for msg in messages:
+                await asyncio.sleep(0.05)
+
+                if cancel_tasks.get(user_id, False) is True:
+                    break
+
+                if msg.service or (not msg.text and not msg.media):
+                    continue  
+
+                await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.UPLOAD_DOCUMENT)
+
+                if bool(custom_caption_val):
+                    prev_cap = "" if not msg.caption else msg.caption.html
+                    f_name = msg.document.file_name if msg.document and hasattr(msg.document, 'file_name') else ""
+                    caption = custom_caption_val.format(previouscaption=prev_cap, filename=f_name)
+                else:
+                    caption = "" if not msg.caption else msg.caption.html
+
+                # -------------------------------------------------------------
+                # 🎵 Telegram Mini App Player (Premium Only Restriction)
+                # -------------------------------------------------------------
+                button_list = []
+                if msg.media and (msg.audio or msg.document or msg.video):
+                    if is_premium:
+                        media_obj = msg.audio or msg.document or msg.video
+                        f_name = getattr(media_obj, 'file_name', 'audio.mp3') or 'audio.mp3'
+                        encoded_name = urllib.parse.quote(f_name)
+                        stream_link = f"{app_url}/?file_id={msg.id}&name={encoded_name}"
+                        
+                        button_list.append([
+                            InlineKeyboardButton(
+                                "▶️ Watch / Listen Online", 
+                                web_app=WebAppInfo(url=stream_link)
+                            )
+                        ])
+                    else:
+                        button_list.append([
+                            InlineKeyboardButton(
+                                "🔒 Watch Online (Prem Only)", 
+                                callback_data="premium"
+                            )
+                        ])
+
+                if msg.reply_markup and hasattr(msg.reply_markup, 'inline_keyboard'):
+                    for row in msg.reply_markup.inline_keyboard:
+                        button_list.append(row)
+
+                reply_markup = InlineKeyboardMarkup(button_list) if button_list else (msg.reply_markup if DISABLE_CHANNEL_BUTTON else None)
+                # -------------------------------------------------------------
+
+                try:
+                    copied_msg = await msg.copy(
+                        chat_id=message.from_user.id, 
+                        caption=caption, 
+                        parse_mode=ParseMode.HTML, 
+                        reply_markup=reply_markup, 
+                        protect_content=protect_content_val
+                    )
+                    codeflix_msgs.append(copied_msg)
+                except FloodWait as e:
+                    await asyncio.sleep(e.x)
+                    if cancel_tasks.get(user_id, False) is True: 
+                        break
+                    copied_msg = await msg.copy(
+                        chat_id=message.from_user.id, 
+                        caption=caption, 
+                        parse_mode=ParseMode.HTML, 
+                        reply_markup=reply_markup, 
+                        protect_content=protect_content_val
+                    )
+                    codeflix_msgs.append(copied_msg)
+                except Exception:
+                    pass
+
+                await asyncio.sleep(1)
+
+        finally:
+            was_cancelled = cancel_tasks.pop(user_id, False)
+
+            try:
+                await temp_msg.delete()
+            except Exception:
+                pass
+
+            if was_cancelled:
+                await message.reply_text("<blockquote>❌ <b>Fɪʟᴇ Dᴇʟɪᴠᴇʀʏ Hᴀs Bᴇᴇɴ CᴀɴᴄᴇʟʟᴇD Sᴜᴄᴄᴇssғᴜʟʟʏ.</b></blockquote>")
+
+            if codeflix_msgs and FILE_AUTO_DELETE > 0:
+                notification_msg = await message.reply_text(
+                    f"<blockquote><b>Tʜɪs Fɪʟᴇ Wɪʟʟ Bᴇ Dᴇʟᴇᴛᴇᴅ Iɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ Sᴀᴠᴇ Oʀ Fᴏʀᴡᴀʀᴅ Iᴛ Tᴏ Yᴏᴜʀ Sᴀᴠᴇᴅ MᴇssᴀɢES Bᴇғᴏʀᴇ Iᴛ Gᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b></blockquote>"
+                )
+
+                await asyncio.sleep(FILE_AUTO_DELETE)
+
+                for snt_msg in codeflix_msgs:    
+                    if snt_msg:
+                        try:    
+                            await snt_msg.delete()  
+                        except Exception:
+                            pass
+
+                try:
+                    reload_url = (
+                        f"https://t.me/{bot_username}?start={message.command[1]}"
+                        if message.command and len(message.command) > 1
+                        else None
+                    )
+                    keyboard = InlineKeyboardMarkup(
+                        [[InlineKeyboardButton("Gᴇᴛ Fɪʟᴇ Aɢᴀɪɴ!", url=reload_url)]]
+                    ) if reload_url else None
+
+                    await notification_msg.edit(
+                        "<blockquote><b>Yᴏᴜʀ Vɪᴅᴇᴏ / Fɪʟᴇ Is Sᴜᴄᴄᴇssғᴜʟʟʏ Dᴇʟᴇᴛᴇᴅ !!\n\nCʟɪᴄᴋ Bᴇʟᴏᴡ BᴜᴛᴛᴏN Tᴏ Gᴇْت Yᴏᴜʀ Dᴇʟᴇᴛᴇᴅ Vɪᴅᴇᴏ / Fɪʟᴇ 👇</b></blockquote>",
+                        reply_markup=keyboard
+                    )
+                except Exception:
+                    pass
+    else:
+        try:
+            sticker_msg = await message.reply_sticker(sticker=START_STICKER)
+            await asyncio.sleep(0.4)
+            await sticker_msg.delete()
+        except Exception:
+            pass  
+        
+        dyn_start_msg = bot_settings.get('start_msg') or START_MSG
+
+        dyn_start_pic = bot_settings.get('start_pic', '')
+        if isinstance(dyn_start_pic, str):
+            dyn_start_pic = dyn_start_pic.strip()
+            if dyn_start_pic.lower() in ["none", "off", "no", "false"]:
+                dyn_start_pic = ""
+
+        is_spoiler = bot_settings.get('start_pic_spoiler', False)
+
+        reply_markup = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("• Cʜᴀɴɴᴇʟs •", callback_data='channels', style=enums.ButtonStyle.PRIMARY)],
+                [
+                    InlineKeyboardButton("• Aʙᴏᴜᴛ •", callback_data="about"),
+                    InlineKeyboardButton("• Hᴇʟᴘ •", callback_data="help")
+                ],
+                [
+                    InlineKeyboardButton("⚙️ Sᴇᴛᴛɪɴɢs", callback_data="cb_settings")
+                ]
+            ]
+        )
+        
+        try:
+            formatted_caption = dyn_start_msg.format(
+                first=message.from_user.first_name,
+                last=message.from_user.last_name if message.from_user.last_name else "",
+                username=f"@{message.from_user.username}" if message.from_user.username else "",
+                mention=message.from_user.mention,
+                id=message.from_user.id
+            )
+        except Exception:
+            formatted_caption = dyn_start_msg
+
+        formatted_caption = f"<blockquote>{formatted_caption}</blockquote>"
+
+        if dyn_start_pic:
+            try:
+                await message.reply_photo(
+                    photo=dyn_start_pic,
+                    caption=formatted_caption,
+                    has_spoiler=is_spoiler,
+                    reply_markup=reply_markup,
+                    effect_id=int(random.choice(EFFECT_IDS))
+                )
+            except Exception:
+                try:
+                    await message.reply_photo(
+                        photo=dyn_start_pic,
+                        caption=formatted_caption,
+                        reply_markup=reply_markup
+                    )
+                except Exception:
+                    await message.reply_text(
+                        text=formatted_caption,
+                        reply_markup=reply_markup,
+                        link_preview_options=LinkPreviewOptions(is_disabled=True)
+                    )
+        else:
+            await message.reply_text(
+                text=formatted_caption,
+                reply_markup=reply_markup,
+                link_preview_options=LinkPreviewOptions(is_disabled=True)
+            )
+        return
+
+
+@Bot.on_callback_query(filters.regex("^cb_settings$"))
+async def cb_settings_handler(client: Client, query: CallbackQuery):
+    user_id = query.from_user.id
+    if user_id not in ADMINS:
+        return await query.answer("⚠️ Tʜɪs Is Oɴʟʏ Fᴏʀ Aᴅᴍɪɴs ⚠️", show_alert=True)
+    
+    await query.answer()
+    await send_main_settings_panel(query)
+
+
+# ==============================================================================
+# FIXED MULTI-BATCH START HANDLER (INLINE BUTTONS WITH DIRECT LINKS)
+# ==============================================================================
+async def handle_multi_batch_start(client: Client, message: Message, payload: str):
+    try:
+        batch_id = payload.replace("mbatch_", "").replace("batch_", "").strip().lower()
+        batch_data = await db.get_multi_batch(batch_id)
+
+        if not batch_data or not batch_data.get("ranges"):
+            await message.reply_text("<blockquote>❌ <b>Nᴏ Eᴘɪsᴏᴅᴇs Fᴏᴜɴᴅ Iɴ Tʜɪs Bᴀᴛᴄʜ!</b></blockquote>")
+            return
+
+        ranges = batch_data.get("ranges", [])
+        db_channel_id = abs(get_db_channel_id
