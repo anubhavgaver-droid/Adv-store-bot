@@ -1,4 +1,4 @@
-import asyncio
+Import asyncio
 import os
 import random
 import sys
@@ -116,7 +116,7 @@ async def start_command(client: Client, message: Message):
             logger.error(f"Error syncing settings to MongoDB for Express Proxy: {e}")
 
         # ==============================================================================
-        # DUAL VERIFICATION & GAP TIMER LOGIC (STEP 1 & STEP 2)
+        # DUAL VERIFICATION & 24-HOUR TIMER LOGIC (STEP 1 & STEP 2)
         # ==============================================================================
         if verify_mode and shortlink_url and shortlink_api and not is_premium:
             # यदि यूजर ने वेरिफिकेशन लिंक पर क्लिक करके टोकन रिडायरेक्ट किया है
@@ -129,30 +129,30 @@ async def start_command(client: Client, message: Message):
                     file_id = base64_string
 
                 if current_step == 0:
-                    # Step 1 पूरा हुआ -> अब Step 1 टाइम सेव करें और step = 1 करें
+                    # Step 1 पूरा हुआ -> अब step = 1 और step1_time सेव करें
                     await db.update_verify_status(user_id, step=1, step1_time=time.time(), verify_token="", link=file_id)
                     current = await db.get_verify_count(user_id)
                     await db.set_verify_count(user_id, current + 1)
 
                     btn = [[InlineKeyboardButton("🚀 Cʟɪᴄᴋ Hᴇʀᴇ Tᴏ Gᴇᴛ Sᴛᴇᴘ 1/2 Fɪʟᴇ", url=f"https://t.me/{bot_username}?start={file_id}")]]
                     return await message.reply_text(
-                        f"<blockquote>✅ <b>Sᴛᴇᴘ 1/2 VᴇʀɪғɪᴇD Sᴜᴄᴄᴇssғᴜʟʟʏ!</b>\n\n"
+                        f"<blockquote>✅ <b>Sᴛᴇᴘ 1/2 Vᴇʀɪғɪᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b>\n\n"
                         f"<b>Gᴀᴘ Tɪᴍᴇ:</b> {get_exp_time(verify_expire)}\n\n"
-                        "Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴ Bᴇʟᴏᴡ Tᴏ PʀᴏᴄᴇᴇD 👇</blockquote>",
+                        "Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴ Bᴇʟᴏᴡ Tᴏ Pʀᴏᴄᴇᴇᴅ 👇</blockquote>",
                         reply_markup=InlineKeyboardMarkup(btn),
                         protect_content=protect_content_val
                     )
 
                 elif current_step == 1:
-                    # Step 2 पूरा हुआ -> अब step = 2 (रात 12 बजे तक फ्री) सेट करें
-                    await db.update_verify_status(user_id, step=2, verify_token="", link=file_id)
+                    # Step 2 पूरा हुआ -> अब step = 2 और step2_time सेव करें (पूरे 24 घंटे के लिए फ्री)
+                    await db.update_verify_status(user_id, step=2, step2_time=time.time(), verify_token="", link=file_id)
                     current = await db.get_verify_count(user_id)
                     await db.set_verify_count(user_id, current + 1)
 
                     btn = [[InlineKeyboardButton("🚀 Gᴇᴛ Fɪʟᴇ Nᴏᴡ", url=f"https://t.me/{bot_username}?start={file_id}")]]
                     return await message.reply_text(
                         f"<blockquote>✅ <b>Sᴛᴇᴘ 2/2 Vᴇʀɪғɪᴇᴅ Sᴜᴄᴄᴇssғᴜʟʟʏ!</b>\n\n"
-                        "🎉 Yᴏᴜ ᴀʀᴇ ɴᴏᴡ ғʀᴇᴇ ᴛɪʟʟ ᴍɪᴅɴɪɢʜᴛ (12:00 AM)!\n\n"
+                        "🎉 Yᴏᴜ ᴀʀᴇ ɴᴏᴡ ғʀᴇᴇ ғᴏʀ ɴᴇxᴛ 24 ʜᴏᴜʀs!\n\n"
                         "Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴ Bᴇʟᴏᴡ Tᴏ Gᴇᴛ Yᴏᴜʀ Fɪʟᴇ 👇</blockquote>",
                         reply_markup=InlineKeyboardMarkup(btn),
                         protect_content=protect_content_val
@@ -176,13 +176,14 @@ async def start_command(client: Client, message: Message):
                     user_id, 
                     step=user_status.get('step', 0), 
                     step1_time=user_status.get('step1_time', 0), 
+                    step2_time=user_status.get('step2_time', 0), 
                     verify_token=token, 
                     link=base64_string
                 )
                 
                 render_verify_link = f"{render_domain.rstrip('/')}/verify?token={token}"
 
-                step_title = "SᴛᴇP 1/2 Vᴇʀɪғɪᴄᴀᴛɪᴏɴ" if req_step == 1 else "Sᴛᴇᴘ 2/2 VᴇʀɪғɪᴄᴀᴛɪᴏN (Gᴀᴘ Tɪᴍᴇ Oᴠᴇʀ)"
+                step_title = "Sᴛᴇᴘ 1/2 Vᴇʀɪғɪᴄᴀᴛɪᴏɴ" if req_step == 1 else "Sᴛᴇᴘ 2/2 Vᴇʀɪғɪᴄᴀᴛɪᴏɴ (Gᴀᴘ Tɪᴍᴇ Oᴠᴇʀ)"
 
                 btn = [
                     [
@@ -194,7 +195,7 @@ async def start_command(client: Client, message: Message):
                     ]
                 ]
                 return await message.reply_text(
-                    f"<blockquote><b>⚠️ {step_title} RᴇǫᴜɪʀᴇD!</b>\n\n"
+                    f"<blockquote><b>⚠️ {step_title} Rᴇǫᴜɪʀᴇᴅ!</b>\n\n"
                     f"Pʟᴇᴀsᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴄᴏᴍᴘʟᴇᴛᴇ ʏᴏᴜʀ ᴠᴇʀɪғɪᴄᴀᴛɪᴏɴ.\n"
                     f"<b>Vᴇʀɪғʏ Tɪᴍᴇᴏᴜᴛ / Gᴀᴘ:</b> {get_exp_time(verify_expire)}</blockquote>",
                     reply_markup=InlineKeyboardMarkup(btn),
@@ -335,7 +336,7 @@ async def start_command(client: Client, message: Message):
 
             if codeflix_msgs and FILE_AUTO_DELETE > 0:
                 notification_msg = await message.reply_text(
-                    f"<blockquote><b>Tʜɪs Fɪʟᴇ Wɪʟʟ Bᴇ Dᴇʟᴇᴛᴇᴅ Iɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ Sᴀᴠᴇ Oʀ Fᴏʀᴡᴀʀᴅ Iᴛ Tᴏ Yᴏᴜʀ Sᴀᴠᴇᴅ MᴇssᴀɢES Bᴇғᴏʀᴇ Iᴛ Gᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b></blockquote>"
+                    f"<blockquote><b>Tʜɪs Fɪʟᴇ Wɪʟʟ Bᴇ Dᴇʟᴇᴛᴇᴅ Iɴ {get_exp_time(FILE_AUTO_DELETE)}. Pʟᴇᴀsᴇ Sᴀᴠᴇ Oʀ Fᴏʀᴡᴀʀᴅ Iᴛ Tᴏ Yᴏᴜʀ Sᴀᴠᴇᴅ Mᴇssᴀɢᴇs Bᴇғᴏʀᴇ Iᴛ Gᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b></blockquote>"
                 )
 
                 await asyncio.sleep(FILE_AUTO_DELETE)
@@ -358,7 +359,7 @@ async def start_command(client: Client, message: Message):
                     ) if reload_url else None
 
                     await notification_msg.edit(
-                        "<blockquote><b>Yᴏᴜʀ Vɪᴅᴇᴏ / Fɪʟᴇ Is Sᴜᴄᴄᴇssғᴜʟʟʏ Dᴇʟᴇᴛᴇᴅ !!\n\nCʟɪᴄᴋ Bᴇʟᴏᴡ BᴜᴛᴛᴏN Tᴏ Gᴇْت Yᴏᴜʀ Dᴇʟᴇᴛᴇᴅ Vɪᴅᴇᴏ / Fɪʟᴇ 👇</b></blockquote>",
+                        "<blockquote><b>Yᴏᴜʀ Vɪᴅᴇᴏ / Fɪʟᴇ Is Sᴜᴄᴄᴇssғᴜʟʟʏ Dᴇʟᴇᴛᴇᴅ !!\n\nCʟɪᴄᴋ Bᴇʟᴏᴡ Bᴜᴛᴛᴏɴ Tᴏ Gᴇᴛ Yᴏᴜʀ Dᴇʟᴇᴛᴇᴅ Vɪᴅᴇᴏ / Fɪʟᴇ 👇</b></blockquote>",
                         reply_markup=keyboard
                     )
                 except Exception:
@@ -485,7 +486,7 @@ async def handle_multi_batch_start(client: Client, message: Message, payload: st
         mbatch_msg = await message.reply_text(
             f"<blockquote>🎬 <b>Mᴜʟᴛɪ-Bᴀᴛᴄʜ Eᴘɪsᴏᴅᴇs:</b> <code>{batch_id.upper()}</code>\n\n"
             f"👇 <b>Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴs Bᴇʟᴏᴡ Tᴏ Gᴇᴛ Yᴏᴜʀ Eᴘɪsᴏᴅᴇs:</b>\n\n"
-            f"⏳ <i>Tʜɪs mᴇssᴀɢE ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇᴅ ɪɴ 1 mɪɴᴜᴛE.</i></blockquote>",
+            f"⏳ <i>Tʜɪs mᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇᴅ ɪɴ 1 mɪɴᴜᴛE.</i></blockquote>",
             reply_markup=markup
         )
 
@@ -641,11 +642,11 @@ async def add_premium_user_command(client: Client, msg: Message):
             "<blockquote>⚠️ <b>UꜱᴀɢE:</b> /addpremium &lt;user_id&gt; &lt;time_value&gt; &lt;time_unit&gt;\n\n"
             "<b>Tɪᴍᴇ Uɴɪᴛs:</b>\n"
             "s - sᴇᴄᴏɴᴅs\n"
-            "m - ᴍɪɴᴜᴛES\n"
+            "m - ᴍɪɴᴜᴛᴇs\n"
             "h - ʜᴏᴜʀs\n"
             "d - ᴅᴀʏs\n"
             "y - ʏᴇᴀʀs\n\n"
-            "<b>E xᴀᴍᴘʟES:</b>\n"
+            "<b>E xᴀᴍᴘʟᴇs:</b>\n"
             "/addpremium 123456789 30 m → 30 ᴍɪɴᴜᴛᴇs\n"
             "/addpremium 123456789 2 h → 2 ʜᴏᴜʀs\n"
             "/addpremium 123456789 1 d → 1 ᴅᴀʏ\n"
@@ -661,7 +662,7 @@ async def add_premium_user_command(client: Client, msg: Message):
         expiration_time = await add_premium(user_id, time_value, time_unit)
 
         await msg.reply_text(
-            f"<blockquote>✅ <b>Uꜱᴇʀ <code>{user_id}</code> Aᴅᴅᴇᴅ As A PʀᴇᴍɪᴜM Uꜱᴇʀ Fᴏʀ {time_value} {time_unit}.</b>\n"
+            f"<blockquote>✅ <b>Uꜱᴇʀ <code>{user_id}</code> Aᴅᴅᴇᴅ As A Pʀᴇᴍɪᴜᴍ Uꜱᴇʀ Fᴏʀ {time_value} {time_unit}.</b>\n"
             f"<b>E xᴘɪʀᴀᴛɪᴏɴ Tɪᴍᴇ:</b> <code>{expiration_time}</code></blockquote>"
         )
 
@@ -678,7 +679,7 @@ async def add_premium_user_command(client: Client, msg: Message):
             pass
 
     except ValueError:
-        await msg.reply_text("<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Iɴᴘᴜᴛ. Pʟᴇᴀsᴇ Eɴsᴜʀᴇ UꜱᴇR ID Aɴᴅ Tɪᴍᴇ Vᴀʟᴜᴇ Aʀᴇ NᴜᴍʙᴇRs.</b></blockquote>")
+        await msg.reply_text("<blockquote>❌ <b>Iɴᴠᴀʟɪᴅ Iɴᴘᴜᴛ. Pʟᴇᴀsᴇ Eɴsᴜʀᴇ UꜱᴇR ID Aɴᴅ Tɪᴍᴇ Vᴀʟᴜᴇ Aʀᴇ Nᴜᴍʙᴇʀs.</b></blockquote>")
     except Exception as e:
         await msg.reply_text(f"<blockquote>⚠️ <b>Aɴ EʀʀᴏR Oᴄᴄᴜʀʀᴇᴅ:</b> <code>{str(e)}</code></blockquote>")
 
@@ -686,21 +687,21 @@ async def add_premium_user_command(client: Client, msg: Message):
 @Bot.on_message(filters.command('remove_premium') & filters.private & admin)
 async def pre_remove_user(client: Client, msg: Message):
     if len(msg.command) != 2:
-        await msg.reply_text("<blockquote>⚠️ <b>UꜱᴀɢE:</b> /remove_premium user_id</blockquote>")
+        await msg.reply_text("<blockquote>⚠️ <b>Uꜱᴀɢᴇ:</b> /remove_premium user_id</blockquote>")
         return
     try:
         user_id = int(msg.command[1])
         await remove_premium(user_id)
         await msg.reply_text(f"<blockquote>✅ <b>Uꜱᴇʀ <code>{user_id}</code> Hᴀs Bᴇᴇɴ Rᴇᴍᴏᴠᴇᴅ.</b></blockquote>")
     except ValueError:
-        await msg.reply_text("<blockquote>⚠️ <b>Uꜱᴇʀ ID Mᴜsᴛ Bᴇ Aɴ IɴᴛᴇGFᴇʀ Oʀ Nᴏᴛ AᴠᴀɪʟᴀʙʟE Iɴ DᴀᴛᴀBᴀsᴇ.</b></blockquote>")
+        await msg.reply_text("<blockquote>⚠️ <b>Uꜱᴇʀ ID Mᴜsᴛ Bᴇ Aɴ Iɴᴛᴇɢᴇʀ Oʀ Nᴏᴛ Aᴠᴀɪʟᴀʙʟᴇ Iɴ Dᴀᴛᴀʙᴀsᴇ.</b></blockquote>")
 
 
 @Bot.on_message(filters.command('premium_users') & filters.private & admin)
 async def list_premium_users_command(client: Client, message: Message):
     ist = timezone("Asia/Kolkata")
     premium_users_cursor = collection.find({})
-    premium_user_list = ['Aᴄᴛɪᴠᴇ Pʀᴇᴍɪᴜᴍ Uꜱᴇʀs Iɴ Dᴀᴛᴀʙᴀsᴇ:']
+    premium_user_list = ['Aᴄᴛɪᴠᴇ PʀᴇᴍɪᴜM Uꜱᴇʀs Iɴ Dᴀᴛᴀʙᴀsᴇ:']
     current_time = datetime.now(ist)  
 
     async for user in premium_users_cursor:
