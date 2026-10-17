@@ -5,7 +5,6 @@ import base64
 import re
 import asyncio
 import time
-from datetime import date
 from pyrogram import filters
 from pyrogram.enums import ChatMemberStatus
 from config import *
@@ -168,7 +167,7 @@ async def get_shortlink(url, api, link):
     return link
 
 
-# ==================== DUAL VERIFICATION ENGINE ====================
+# ==================== DUAL VERIFICATION ENGINE (24 HOURS) ====================
 
 async def check_user_verification(user_id: int) -> tuple[bool, int]:
     """
@@ -185,37 +184,8 @@ async def check_user_verification(user_id: int) -> tuple[bool, int]:
     if not verify_mode:
         return True, 0
 
-    user_status = await db.get_verify_status(user_id)
-    step = user_status.get('step', 0)
-    step1_time = user_status.get('step1_time', 0)
-    last_date = user_status.get('last_date', '')
-    
-    current_time = time.time()
-    today_str = date.today().isoformat()
-
-    # 1. Midnight Reset Check (रात 12:00 बजे अपने आप रिसेट करने के लिए)
-    if last_date != today_str:
-        await db.update_verify_status(user_id, step=0, step1_time=0, verify_token="", link="")
-        return False, 1
-
-    # 2. Config से गैप टाइमर निकालें
-    gap_expire = int(settings.get('verify_expire', VERIFY_EXPIRE))
-
-    # 3. Check Steps
-    if step == 0:
-        return False, 1  # Step 1 Verification Pending
-
-    elif step == 1:
-        # गैप टाइमर चेक करें
-        if (current_time - step1_time) < gap_expire:
-            return True, 0  # Allowed under Gap Timer!
-        else:
-            return False, 2 # Gap Time over -> Need Step 2 Verification
-
-    elif step == 2:
-        return True, 0  # Fully verified till midnight!
-
-    return False, 1
+    # database.py के अंदर बने 24 घंटे वाले मेथड को कॉल करते हैं
+    return await db.is_user_verified(user_id)
 
 
 subscribed = filters.create(is_subscribed)
